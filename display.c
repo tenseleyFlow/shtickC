@@ -56,7 +56,8 @@ void show_usage(void) {
     printf("  shtick alias <key>                    Show specific alias definition\n");
     printf("  shtick alias <key=value>              Add persistent alias\n");
     printf("  shtick add alias <group> <key=value>  Add alias to group\n");
-    printf("  shtick remove alias <group> <search>  Remove alias from group\n");
+    printf("  shtick remove <search>                Remove alias from any group\n");
+    printf("  shtick remove alias <group> <search>  Remove alias from specific group\n");
     printf("  shtick activate <group>               Activate a group\n");
     printf("  shtick deactivate <group>             Deactivate a group\n");
     printf("  shtick status                         Show status\n");
