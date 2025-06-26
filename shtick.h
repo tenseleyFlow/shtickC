@@ -1,0 +1,76 @@
+// shtick.h - Main header file for shtick
+#ifndef SHTICK_H
+#define SHTICK_H
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+
+// Constants
+#define MAX_PATH 4096
+#define MAX_LINE 4096
+#define MAX_KEY 64
+#define MAX_VALUE 4096
+#define MAX_GROUPS 100
+#define MAX_ITEMS 1000
+#define MAX_ACTIVE_GROUPS 100
+
+// Data structures
+typedef struct {
+    char key[MAX_KEY];
+    char value[MAX_VALUE];
+} Item;
+
+typedef struct {
+    char name[MAX_KEY];
+    Item aliases[MAX_ITEMS];
+    int alias_count;
+} Group;
+
+typedef struct {
+    Group groups[MAX_GROUPS];
+    int group_count;
+    char config_path[MAX_PATH];
+    char active_groups[MAX_ACTIVE_GROUPS][MAX_KEY];
+    int active_group_count;
+} Config;
+
+// Global config (extern declaration)
+extern Config g_config;
+
+// config.c - Configuration management
+void get_default_config_path(char *path, size_t size);
+void get_active_groups_path(char *path, size_t size);
+int load_config(const char *config_path);
+int save_config(const char *config_path);
+int load_active_groups(void);
+int save_active_groups(void);
+bool is_group_active(const char *group_name);
+
+// groups.c - Group management
+Group* find_or_create_group(const char *name);
+Group* find_group(const char *name);
+int activate_group(const char *group_name);
+int deactivate_group(const char *group_name);
+
+// aliases.c - Alias management
+int add_alias(const char *group_name, const char *key, const char *value);
+int remove_alias(const char *group_name, const char *search_term);
+void show_alias_definition(const char *alias_name);
+void show_all_aliases(void);
+void list_aliases(void);
+
+// generator.c - Shell file generation
+int generate_shell_file(const char *shell_type);
+
+// display.c - Display and status functions
+void show_status(void);
+void show_usage(void);
+
+// utils.c - Utility functions
+void ensure_directory(const char *path);
+int parse_assignment(const char *assignment, char *key, char *value);
+bool parse_toml_line(const char *line, char *section, char *key, char *value);
+
+#endif // SHTICK_H
