@@ -3,6 +3,8 @@
 
 **usage**
 ```
+  shtick alias                          Show all aliases
+  shtick alias <key>                    Show specific alias definition
   shtick alias <key=value>              Add persistent alias
   shtick add alias <group> <key=value>  Add alias to group
   shtick remove alias <group> <search>  Remove alias from group
