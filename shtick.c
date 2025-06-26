@@ -696,10 +696,73 @@ int parse_assignment(const char *assignment, char *key, char *value) {
     return 0;
 }
 
+// Show all aliases in a compact format
+void show_all_aliases() {
+    bool found = false;
+    
+    // First show active aliases
+    printf("Active aliases:\n");
+    for (int i = 0; i < g_config.group_count; i++) {
+        Group *group = &g_config.groups[i];
+        if (!is_group_active(group->name)) continue;
+        
+        for (int j = 0; j < group->alias_count; j++) {
+            printf("  %s='%s'\n", group->aliases[j].key, group->aliases[j].value);
+            found = true;
+        }
+    }
+    
+    // Then show inactive aliases
+    bool has_inactive = false;
+    for (int i = 0; i < g_config.group_count; i++) {
+        Group *group = &g_config.groups[i];
+        if (is_group_active(group->name) || group->alias_count == 0) continue;
+        
+        if (!has_inactive) {
+            printf("\nInactive aliases (activate with 'shtick activate <group>'):\n");
+            has_inactive = true;
+        }
+        
+        printf("  [%s]\n", group->name);
+        for (int j = 0; j < group->alias_count; j++) {
+            printf("    %s='%s'\n", group->aliases[j].key, group->aliases[j].value);
+        }
+    }
+    
+    if (!found && !has_inactive) {
+        printf("No aliases configured\n");
+    }
+}
+
+// Find and show alias definition
+void show_alias_definition(const char *alias_name) {
+    bool found = false;
+    
+    // Search through all groups
+    for (int i = 0; i < g_config.group_count; i++) {
+        Group *group = &g_config.groups[i];
+        
+        for (int j = 0; j < group->alias_count; j++) {
+            if (strcmp(group->aliases[j].key, alias_name) == 0) {
+                const char *status = is_group_active(group->name) ? "active" : "inactive";
+                printf("%s='%s' (group: %s, %s)\n", 
+                       alias_name, group->aliases[j].value, group->name, status);
+                found = true;
+            }
+        }
+    }
+    
+    if (!found) {
+        printf("Alias '%s' not found\n", alias_name);
+    }
+}
+
 // Show usage
 void show_usage() {
     printf("shtick - Shell configuration manager (C port)\n\n");
     printf("Usage:\n");
+    printf("  shtick alias                          Show all aliases\n");
+    printf("  shtick alias <key>                    Show specific alias definition\n");
     printf("  shtick alias <key=value>              Add persistent alias\n");
     printf("  shtick add alias <group> <key=value>  Add alias to group\n");
     printf("  shtick remove alias <group> <search>  Remove alias from group\n");
@@ -736,29 +799,37 @@ int main(int argc, char *argv[]) {
     // Handle commands
     if (strcmp(argv[1], "alias") == 0) {
         if (argc < 3) {
-            fprintf(stderr, "Error: Missing assignment\n");
-            return 1;
+            // No argument - show all aliases
+            show_all_aliases();
+            return 0;
         }
         
-        char key[MAX_KEY];
-        char value[MAX_VALUE];
-        
-        if (parse_assignment(argv[2], key, value) != 0) {
-            return 1;
-        }
-        
-        if (add_alias("persistent", key, value) == 0) {
-            save_config(g_config.config_path);
-            printf("✓ Added alias '%s' = '%s' to persistent group (always active)\n", key, value);
+        // Check if it's a query (no '=' sign) or an assignment
+        if (strchr(argv[2], '=') == NULL) {
+            // Query mode - show alias definition
+            show_alias_definition(argv[2]);
+        } else {
+            // Assignment mode - add alias
+            char key[MAX_KEY];
+            char value[MAX_VALUE];
             
-            // Generate shell files for common shells
-            generate_shell_file("bash");
-            generate_shell_file("zsh");
-            generate_shell_file("fish");
+            if (parse_assignment(argv[2], key, value) != 0) {
+                return 1;
+            }
             
-            printf("\nTo load changes immediately:\n");
-            printf("  source ~/.config/shtick/load_active.bash   # For bash\n");
-            printf("  source ~/.config/shtick/load_active.zsh    # For zsh\n");
+            if (add_alias("persistent", key, value) == 0) {
+                save_config(g_config.config_path);
+                printf("✓ Added alias '%s' = '%s' to persistent group (always active)\n", key, value);
+                
+                // Generate shell files for common shells
+                generate_shell_file("bash");
+                generate_shell_file("zsh");
+                generate_shell_file("fish");
+                
+                printf("\nTo load changes immediately:\n");
+                printf("  source ~/.config/shtick/load_active.bash   # For bash\n");
+                printf("  source ~/.config/shtick/load_active.zsh    # For zsh\n");
+            }
         }
         
     } else if (strcmp(argv[1], "add") == 0 && argc >= 5 && strcmp(argv[2], "alias") == 0) {
