@@ -57,6 +57,7 @@ int deactivate_group(const char *group_name);
 // aliases.c - Alias management
 int add_alias(const char *group_name, const char *key, const char *value);
 int remove_alias(const char *group_name, const char *search_term);
+int remove_alias_global(const char *search_term);
 void show_alias_definition(const char *alias_name);
 void show_all_aliases(void);
 void list_aliases(void);
