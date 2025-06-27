@@ -63,6 +63,41 @@ int main(int argc, char *argv[]) {
             }
         }
         
+    } else if (strcmp(argv[1], "env") == 0) {
+        if (argc < 3) {
+            // No argument - show all env vars
+            show_all_envs();
+            return 0;
+        }
+        
+        // Check if it's a query (no '=' sign) or an assignment
+        if (strchr(argv[2], '=') == NULL) {
+            // Query mode - show env definition
+            show_env_definition(argv[2]);
+        } else {
+            // Assignment mode - add env var
+            char key[MAX_KEY];
+            char value[MAX_VALUE];
+            
+            if (parse_assignment(argv[2], key, value) != 0) {
+                return 1;
+            }
+            
+            if (add_env("persistent", key, value) == 0) {
+                save_config(g_config.config_path);
+                printf("✓ Added environment variable '%s' = '%s' to persistent group (always active)\n", key, value);
+                
+                // Generate shell files for common shells
+                generate_shell_file("bash");
+                generate_shell_file("zsh");
+                generate_shell_file("fish");
+                
+                printf("\nTo load changes immediately:\n");
+                printf("  source ~/.config/shtick/load_active.bash   # For bash\n");
+                printf("  source ~/.config/shtick/load_active.zsh    # For zsh\n");
+            }
+        }
+        
     } else if (strcmp(argv[1], "add") == 0 && argc >= 5 && strcmp(argv[2], "alias") == 0) {
         // shtick add alias <group> <key=value>
         char key[MAX_KEY];
@@ -85,11 +120,35 @@ int main(int argc, char *argv[]) {
             }
         }
         
+    } else if (strcmp(argv[1], "add") == 0 && argc >= 5 && strcmp(argv[2], "env") == 0) {
+        // shtick add env <group> <key=value>
+        char key[MAX_KEY];
+        char value[MAX_VALUE];
+        
+        if (parse_assignment(argv[4], key, value) != 0) {
+            return 1;
+        }
+        
+        if (add_env(argv[3], key, value) == 0) {
+            save_config(g_config.config_path);
+            printf("✓ Added environment variable '%s' = '%s' to group '%s'\n", key, value, argv[3]);
+            
+            // Regenerate if group is active
+            if (is_group_active(argv[3])) {
+                generate_shell_file("bash");
+                generate_shell_file("zsh");
+                generate_shell_file("fish");
+                printf("\nGroup '%s' is active - changes available in new shell sessions\n", argv[3]);
+            }
+        }
+        
     } else if (strcmp(argv[1], "remove") == 0) {
         if (argc == 3) {
-            // shtick remove <search> - search all groups
-            int result = remove_alias_global(argv[2]);
-            if (result > 0) {
+            // shtick remove <search> - search all groups for both aliases and env vars
+            int alias_result = remove_alias_global(argv[2]);
+            int env_result = remove_env_global(argv[2]);
+            
+            if (alias_result > 0 || env_result > 0) {
                 save_config(g_config.config_path);
                 
                 // Regenerate shell files
@@ -112,9 +171,23 @@ int main(int argc, char *argv[]) {
                     printf("\nGroup '%s' is active - changes available in new shell sessions\n", argv[3]);
                 }
             }
+        } else if (argc >= 5 && strcmp(argv[2], "env") == 0) {
+            // shtick remove env <group> <search> - search specific group
+            int result = remove_env(argv[3], argv[4]);
+            if (result > 0) {
+                save_config(g_config.config_path);
+                
+                // Regenerate if group is active
+                if (is_group_active(argv[3])) {
+                    generate_shell_file("bash");
+                    generate_shell_file("zsh");
+                    generate_shell_file("fish");
+                    printf("\nGroup '%s' is active - changes available in new shell sessions\n", argv[3]);
+                }
+            }
         } else {
             fprintf(stderr, "Error: Invalid remove syntax\n");
-            fprintf(stderr, "Usage: shtick remove <search>  OR  shtick remove alias <group> <search>\n");
+            fprintf(stderr, "Usage: shtick remove <search>  OR  shtick remove alias|env <group> <search>\n");
             return 1;
         }
         
@@ -157,6 +230,7 @@ int main(int argc, char *argv[]) {
         
     } else if (strcmp(argv[1], "list") == 0) {
         list_aliases();
+        list_envs();
         
     } else if (strcmp(argv[1], "generate") == 0) {
         const char *shells[] = {"bash", "zsh", "fish"};

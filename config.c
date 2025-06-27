@@ -110,6 +110,7 @@ int load_config(const char *config_path) {
                         current_group = &g_config.groups[g_config.group_count++];
                         strcpy(current_group->name, group_name);
                         current_group->alias_count = 0;
+                        current_group->env_var_count = 0;
                     }
                     
                     // Add alias to group
@@ -117,6 +118,38 @@ int load_config(const char *config_path) {
                         Item *alias = &current_group->aliases[current_group->alias_count++];
                         strcpy(alias->key, key);
                         strcpy(alias->value, value);
+                    }
+                }
+            } else if (strstr(section, ".env_vars")) {
+                // Extract group name from section
+                char group_name[MAX_KEY];
+                char *dot = strchr(section, '.');
+                if (dot) {
+                    size_t len = dot - section;
+                    strncpy(group_name, section, len);
+                    group_name[len] = '\0';
+                    
+                    // Find or create group
+                    current_group = NULL;
+                    for (int i = 0; i < g_config.group_count; i++) {
+                        if (strcmp(g_config.groups[i].name, group_name) == 0) {
+                            current_group = &g_config.groups[i];
+                            break;
+                        }
+                    }
+                    
+                    if (!current_group && g_config.group_count < MAX_GROUPS) {
+                        current_group = &g_config.groups[g_config.group_count++];
+                        strcpy(current_group->name, group_name);
+                        current_group->alias_count = 0;
+                        current_group->env_var_count = 0;
+                    }
+                    
+                    // Add env var to group
+                    if (current_group && current_group->env_var_count < MAX_ITEMS) {
+                        Item *env = &current_group->env_vars[current_group->env_var_count++];
+                        strcpy(env->key, key);
+                        strcpy(env->value, value);
                     }
                 }
             }
@@ -148,6 +181,14 @@ int save_config(const char *config_path) {
         
         // Add empty sections for env_vars and functions
         fprintf(fp, "\n[%s.env_vars]\n", group->name);
+        
+        for (int j = 0; j < group->env_var_count; j++) {
+            Item *env = &group->env_vars[j];
+            char escaped_value[MAX_VALUE * 2];  // Extra space for escaping
+            escape_toml_value(env->value, escaped_value, sizeof(escaped_value));
+            fprintf(fp, "%s = %s\n", env->key, escaped_value);
+        }
+        
         fprintf(fp, "\n[%s.functions]\n", group->name);
         fprintf(fp, "\n");
     }

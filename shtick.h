@@ -26,6 +26,8 @@ typedef struct {
     char name[MAX_KEY];
     Item aliases[MAX_ITEMS];
     int alias_count;
+    Item env_vars[MAX_ITEMS];
+    int env_var_count;
 } Group;
 
 typedef struct {
@@ -62,6 +64,14 @@ void show_alias_definition(const char *alias_name);
 void show_all_aliases(void);
 void list_aliases(void);
 
+// env.c - Environment variable management
+int add_env(const char *group_name, const char *key, const char *value);
+int remove_env(const char *group_name, const char *search_term);
+int remove_env_global(const char *search_term);
+void show_env_definition(const char *env_name);
+void show_all_envs(void);
+void list_envs(void);
+
 // generator.c - Shell file generation
 int generate_shell_file(const char *shell_type);
 
@@ -80,5 +90,7 @@ char* escape_fish_value(const char *value, char *buffer, size_t size);
 char* escape_toml_value(const char *value, char *buffer, size_t size);
 bool validate_alias_value(const char *value);
 bool validate_key_format(const char *key);
+bool validate_env_value(const char *value);
+bool is_critical_env_var(const char *key);
 
 #endif // SHTICK_H
