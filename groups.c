@@ -14,6 +14,7 @@ Group* find_or_create_group(const char *name) {
         Group *group = &g_config.groups[g_config.group_count++];
         strcpy(group->name, name);
         group->alias_count = 0;
+        group->env_var_count = 0;
         return group;
     }
     

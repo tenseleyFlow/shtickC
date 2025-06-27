@@ -7,8 +7,9 @@ void show_status(void) {
     
     // Show persistent group
     Group *persistent = find_group("persistent");
-    if (persistent && persistent->alias_count > 0) {
-        printf("Persistent (always active): %d items\n", persistent->alias_count);
+    if (persistent && (persistent->alias_count > 0 || persistent->env_var_count > 0)) {
+        printf("Persistent (always active): %d aliases, %d env vars\n", 
+               persistent->alias_count, persistent->env_var_count);
     } else {
         printf("Persistent: No items\n");
     }
@@ -23,7 +24,8 @@ void show_status(void) {
             if (strcmp(group->name, "persistent") == 0) continue;
             
             const char *status = is_group_active(group->name) ? "ACTIVE" : "inactive";
-            printf("  %s: %d items (%s)\n", group->name, group->alias_count, status);
+            printf("  %s: %d aliases, %d env vars (%s)\n", 
+                   group->name, group->alias_count, group->env_var_count, status);
         }
     } else {
         printf("No groups configured\n");
@@ -55,9 +57,14 @@ void show_usage(void) {
     printf("  shtick alias                          Show all aliases\n");
     printf("  shtick alias <key>                    Show specific alias definition\n");
     printf("  shtick alias <key=value>              Add persistent alias\n");
+    printf("  shtick env                            Show all environment variables\n");
+    printf("  shtick env <key>                      Show specific env var definition\n");
+    printf("  shtick env <key=value>                Add persistent env var\n");
     printf("  shtick add alias <group> <key=value>  Add alias to group\n");
-    printf("  shtick remove <search>                Remove alias from any group\n");
+    printf("  shtick add env <group> <key=value>    Add env var to group\n");
+    printf("  shtick remove <search>                Remove alias/env from any group\n");
     printf("  shtick remove alias <group> <search>  Remove alias from specific group\n");
+    printf("  shtick remove env <group> <search>    Remove env var from specific group\n");
     printf("  shtick activate <group>               Activate a group\n");
     printf("  shtick deactivate <group>             Deactivate a group\n");
     printf("  shtick status                         Show status\n");

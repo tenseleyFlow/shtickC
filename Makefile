@@ -8,7 +8,7 @@ CFLAGS = -Wall -Wextra -O2 -std=c99 -D_GNU_SOURCE
 TARGET = shtick
 
 # Source files
-SRCS = main.c config.c groups.c aliases.c generator.c display.c utils.c escape.c
+SRCS = main.c config.c groups.c aliases.c env.c generator.c display.c utils.c escape.c
 OBJS = $(SRCS:.c=.o)
 HEADERS = shtick.h
 
@@ -30,6 +30,7 @@ clean:
 debug: CFLAGS += -g -DDEBUG
 debug: clean $(TARGET)
 
+# Static analysis
 analyze:
 	@echo "Running static analysis..."
 	@command -v cppcheck >/dev/null 2>&1 && cppcheck --enable=all --suppress=missingIncludeSystem $(SRCS) $(HEADERS) || echo "cppcheck not found"
