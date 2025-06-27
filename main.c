@@ -17,12 +17,45 @@ void cmd_init(const char *shell) {
         printf("source ~/.config/shtick/load_active.zsh\n\n");
         printf("# Fish (~/.config/fish/config.fish):\n");
         printf("source ~/.config/shtick/load_active.fish\n\n");
+        printf("# PowerShell (profile):\n");
+        printf(". ~/.config/shtick/load_active.ps1\n\n");
+        printf("# For other shells, use: shtick init <shell>\n");
+    } else if (strcmp(shell, "bash") == 0) {
+        printf("# Add to ~/.bashrc:\n");
+        printf("source ~/.config/shtick/load_active.bash\n");
+    } else if (strcmp(shell, "zsh") == 0) {
+        printf("# Add to ~/.zshrc:\n");
+        printf("source ~/.config/shtick/load_active.zsh\n");
+    } else if (strcmp(shell, "fish") == 0) {
+        printf("# Add to ~/.config/fish/config.fish:\n");
+        printf("source ~/.config/shtick/load_active.fish\n");
+    } else if (strcmp(shell, "ksh") == 0) {
+        printf("# Add to ~/.kshrc:\n");
+        printf("source ~/.config/shtick/load_active.ksh\n");
+    } else if (strcmp(shell, "tcsh") == 0 || strcmp(shell, "csh") == 0) {
+        printf("# Add to ~/.tcshrc or ~/.cshrc:\n");
+        printf("source ~/.config/shtick/load_active.%s\n", shell);
+    } else if (strcmp(shell, "xonsh") == 0) {
+        printf("# Add to ~/.xonshrc:\n");
+        printf("source ~/.config/shtick/load_active.xsh\n");
+    } else if (strcmp(shell, "elvish") == 0) {
+        printf("# Add to ~/.elvish/rc.elv:\n");
+        printf("-source ~/.config/shtick/load_active.elv\n");
+    } else if (strcmp(shell, "nu") == 0) {
+        printf("# Add to ~/.config/nu/config.nu:\n");
+        printf("source ~/.config/shtick/load_active.nu\n");
+    } else if (strcmp(shell, "ion") == 0) {
+        printf("# Add to ~/.config/ion/initrc:\n");
+        printf("source ~/.config/shtick/load_active.ion\n");
+    } else if (strcmp(shell, "pwsh") == 0) {
+        printf("# Add to your PowerShell profile:\n");
+        printf(". ~/.config/shtick/load_active.ps1\n");
     } else {
         printf("# Add to your %s config:\n", shell);
-        printf("source ~/.config/shtick/load_active.%s\n\n", shell);
+        printf("source ~/.config/shtick/load_active.%s\n", shell);
     }
     
-    printf("Then run: shtick generate\n");
+    printf("\nThen run: shtick generate %s\n", shell ? shell : "");
 }
 
 int main(int argc, char *argv[]) {
@@ -308,18 +341,36 @@ int main(int argc, char *argv[]) {
         list_functions();
     }
     else if (strcmp(command, "generate") == 0) {
-        printf("✓ Generating shell files...\n");
-        generate_shell_file("bash");
-        generate_shell_file("zsh");
-        generate_shell_file("fish");
-        printf("✓ Done! Source ~/.config/shtick/load_active.<shell> in your shell config\n");
+        if (argc >= 3) {
+            // Generate for specific shell
+            const char *shell = argv[2];
+            if (strcmp(shell, "all") == 0) {
+                generate_all_shells();
+            } else {
+                printf("✓ Generating %s files...\n", shell);
+                if (generate_shell_file(shell) == 0) {
+                    printf("✓ Done! Source ~/.config/shtick/load_active.%s in your shell config\n", shell);
+                }
+            }
+        } else {
+            // Generate for common shells only
+            printf("✓ Generating shell files for common shells...\n");
+            generate_shell_file("bash");
+            generate_shell_file("zsh");
+            generate_shell_file("fish");
+            printf("✓ Done! Source ~/.config/shtick/load_active.<shell> in your shell config\n");
+            printf("Use 'shtick generate all' to generate for all 16 supported shells\n");
+        }
+    }
+    else if (strcmp(command, "shells") == 0) {
+        list_supported_shells();
     }
     else if (strcmp(command, "completions") == 0) {
-        // NEW: Generate shell completions
+        // Generate shell completions
         const char *shell = argc >= 3 ? argv[2] : "all";
         if (generate_completions(shell) == 0) {
             if (strcmp(shell, "all") == 0) {
-                printf("✓ Generated completions for all shells\n");
+                printf("✓ Generated completions for common shells\n");
             }
         }
     }
