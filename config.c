@@ -68,6 +68,43 @@ int save_active_groups(void) {
     return 0;
 }
 
+// Helper to parse multiline TOML strings
+static bool parse_multiline_value(FILE *fp, char *value, size_t max_size) {
+    char line[MAX_LINE];
+    size_t total_len = 0;
+    value[0] = '\0';
+    
+    // We've already seen the opening '''
+    while (fgets(line, sizeof(line), fp)) {
+        // Check if this line contains the closing '''
+        char *end = strstr(line, "'''");
+        if (end) {
+            // Copy up to the closing quotes
+            size_t copy_len = end - line;
+            if (total_len + copy_len < max_size - 1) {
+                strncat(value, line, copy_len);
+                total_len += copy_len;
+            }
+            
+            // Remove trailing newline if present
+            if (total_len > 0 && value[total_len-1] == '\n') {
+                value[--total_len] = '\0';
+            }
+            
+            return true;
+        } else {
+            // Copy entire line
+            size_t line_len = strlen(line);
+            if (total_len + line_len < max_size - 1) {
+                strcat(value, line);
+                total_len += line_len;
+            }
+        }
+    }
+    
+    return false;  // EOF without closing '''
+}
+
 int load_config(const char *config_path) {
     FILE *fp = fopen(config_path, "r");
     if (!fp) {
@@ -86,71 +123,191 @@ int load_config(const char *config_path) {
         // Remove newline
         line[strcspn(line, "\n")] = 0;
         
-        if (parse_toml_line(line, section, key, value)) {
-            // We have a key-value pair
-            if (strstr(section, ".aliases")) {
-                // Extract group name from section
-                char group_name[MAX_KEY];
-                char *dot = strchr(section, '.');
-                if (dot) {
-                    size_t len = dot - section;
-                    strncpy(group_name, section, len);
-                    group_name[len] = '\0';
-                    
-                    // Find or create group
-                    current_group = NULL;
-                    for (int i = 0; i < g_config.group_count; i++) {
-                        if (strcmp(g_config.groups[i].name, group_name) == 0) {
-                            current_group = &g_config.groups[i];
-                            break;
-                        }
-                    }
-                    
-                    if (!current_group && g_config.group_count < MAX_GROUPS) {
-                        current_group = &g_config.groups[g_config.group_count++];
-                        strcpy(current_group->name, group_name);
-                        current_group->alias_count = 0;
-                        current_group->env_var_count = 0;
-                    }
-                    
-                    // Add alias to group
-                    if (current_group && current_group->alias_count < MAX_ITEMS) {
-                        Item *alias = &current_group->aliases[current_group->alias_count++];
-                        strcpy(alias->key, key);
-                        strcpy(alias->value, value);
+        // Skip empty lines and comments
+        if (strlen(line) == 0 || line[0] == '#') continue;
+        
+        // Check for section header
+        if (line[0] == '[') {
+            char *end = strchr(line, ']');
+            if (end) {
+                size_t len = end - line - 1;
+                strncpy(section, line + 1, len);
+                section[len] = '\0';
+            }
+            continue;
+        }
+        
+        // Parse key = value
+        char *eq = strchr(line, '=');
+        if (!eq) continue;
+        
+        // Extract key
+        size_t key_len = eq - line;
+        while (key_len > 0 && (line[key_len-1] == ' ' || line[key_len-1] == '\t')) key_len--;
+        strncpy(key, line, key_len);
+        key[key_len] = '\0';
+        
+        // Extract value
+        char *val_start = eq + 1;
+        while (*val_start == ' ' || *val_start == '\t') val_start++;
+        
+        // Check for triple quotes (multiline string)
+        if (strncmp(val_start, "'''", 3) == 0) {
+            // Parse multiline value
+            char multiline_value[MAX_FUNCTION_BODY];
+            val_start += 3;
+            
+            // Check if closing ''' is on same line
+            char *end = strstr(val_start, "'''");
+            if (end) {
+                // Single line with triple quotes
+                size_t val_len = end - val_start;
+                strncpy(multiline_value, val_start, val_len);
+                multiline_value[val_len] = '\0';
+            } else {
+                // True multiline - copy rest of first line
+                strcpy(multiline_value, val_start);
+                if (strlen(val_start) > 0) strcat(multiline_value, "\n");
+                
+                // Read until closing '''
+                parse_multiline_value(fp, multiline_value + strlen(multiline_value), 
+                                    sizeof(multiline_value) - strlen(multiline_value));
+            }
+            
+            strcpy(value, multiline_value);
+        } else {
+            // Regular value parsing
+            if (*val_start == '"') {
+                // Double quoted string
+                val_start++;
+                char *val_end = strrchr(val_start, '"');
+                if (val_end) {
+                    size_t val_len = val_end - val_start;
+                    strncpy(value, val_start, val_len);
+                    value[val_len] = '\0';
+                } else {
+                    strcpy(value, val_start);
+                }
+            } else if (*val_start == '\'') {
+                // Single quoted string
+                val_start++;
+                char *val_end = strrchr(val_start, '\'');
+                if (val_end) {
+                    size_t val_len = val_end - val_start;
+                    strncpy(value, val_start, val_len);
+                    value[val_len] = '\0';
+                } else {
+                    strcpy(value, val_start);
+                }
+            } else {
+                // Unquoted value
+                strcpy(value, val_start);
+                // Trim trailing whitespace
+                size_t len = strlen(value);
+                while (len > 0 && (value[len-1] == ' ' || value[len-1] == '\t')) {
+                    value[--len] = '\0';
+                }
+            }
+        }
+        
+        // Now we have section, key, and value - process them
+        if (strstr(section, ".aliases")) {
+            // Extract group name from section
+            char group_name[MAX_KEY];
+            char *dot = strchr(section, '.');
+            if (dot) {
+                size_t len = dot - section;
+                strncpy(group_name, section, len);
+                group_name[len] = '\0';
+                
+                // Find or create group
+                current_group = NULL;
+                for (int i = 0; i < g_config.group_count; i++) {
+                    if (strcmp(g_config.groups[i].name, group_name) == 0) {
+                        current_group = &g_config.groups[i];
+                        break;
                     }
                 }
-            } else if (strstr(section, ".env_vars")) {
-                // Extract group name from section
-                char group_name[MAX_KEY];
-                char *dot = strchr(section, '.');
-                if (dot) {
-                    size_t len = dot - section;
-                    strncpy(group_name, section, len);
-                    group_name[len] = '\0';
-                    
-                    // Find or create group
-                    current_group = NULL;
-                    for (int i = 0; i < g_config.group_count; i++) {
-                        if (strcmp(g_config.groups[i].name, group_name) == 0) {
-                            current_group = &g_config.groups[i];
-                            break;
-                        }
+                
+                if (!current_group && g_config.group_count < MAX_GROUPS) {
+                    current_group = &g_config.groups[g_config.group_count++];
+                    strcpy(current_group->name, group_name);
+                    current_group->alias_count = 0;
+                    current_group->env_var_count = 0;
+                    current_group->function_count = 0;
+                }
+                
+                // Add alias to group
+                if (current_group && current_group->alias_count < MAX_ITEMS) {
+                    Item *alias = &current_group->aliases[current_group->alias_count++];
+                    strcpy(alias->key, key);
+                    strcpy(alias->value, value);
+                }
+            }
+        } else if (strstr(section, ".env_vars")) {
+            // Extract group name from section
+            char group_name[MAX_KEY];
+            char *dot = strchr(section, '.');
+            if (dot) {
+                size_t len = dot - section;
+                strncpy(group_name, section, len);
+                group_name[len] = '\0';
+                
+                // Find or create group
+                current_group = NULL;
+                for (int i = 0; i < g_config.group_count; i++) {
+                    if (strcmp(g_config.groups[i].name, group_name) == 0) {
+                        current_group = &g_config.groups[i];
+                        break;
                     }
-                    
-                    if (!current_group && g_config.group_count < MAX_GROUPS) {
-                        current_group = &g_config.groups[g_config.group_count++];
-                        strcpy(current_group->name, group_name);
-                        current_group->alias_count = 0;
-                        current_group->env_var_count = 0;
+                }
+                
+                if (!current_group && g_config.group_count < MAX_GROUPS) {
+                    current_group = &g_config.groups[g_config.group_count++];
+                    strcpy(current_group->name, group_name);
+                    current_group->alias_count = 0;
+                    current_group->env_var_count = 0;
+                    current_group->function_count = 0;
+                }
+                
+                // Add env var to group
+                if (current_group && current_group->env_var_count < MAX_ITEMS) {
+                    Item *env = &current_group->env_vars[current_group->env_var_count++];
+                    strcpy(env->key, key);
+                    strcpy(env->value, value);
+                }
+            }
+        } else if (strstr(section, ".functions")) {
+            // Extract group name from section
+            char group_name[MAX_KEY];
+            char *dot = strchr(section, '.');
+            if (dot) {
+                size_t len = dot - section;
+                strncpy(group_name, section, len);
+                group_name[len] = '\0';
+                
+                // Find or create group
+                current_group = NULL;
+                for (int i = 0; i < g_config.group_count; i++) {
+                    if (strcmp(g_config.groups[i].name, group_name) == 0) {
+                        current_group = &g_config.groups[i];
+                        break;
                     }
-                    
-                    // Add env var to group
-                    if (current_group && current_group->env_var_count < MAX_ITEMS) {
-                        Item *env = &current_group->env_vars[current_group->env_var_count++];
-                        strcpy(env->key, key);
-                        strcpy(env->value, value);
-                    }
+                }
+                
+                if (!current_group && g_config.group_count < MAX_GROUPS) {
+                    current_group = &g_config.groups[g_config.group_count++];
+                    strcpy(current_group->name, group_name);
+                    current_group->alias_count = 0;
+                    current_group->env_var_count = 0;
+                    current_group->function_count = 0;
+                }
+                
+                // Add function to group
+                if (current_group && current_group->function_count < MAX_ITEMS) {
+                    Function *func = &current_group->functions[current_group->function_count++];
+                    strcpy(func->name, key);
+                    strcpy(func->body, value);
                 }
             }
         }
@@ -166,31 +323,54 @@ int save_config(const char *config_path) {
         return -1;
     }
     
+    fprintf(fp, "# Shtick configuration file\n");
+    fprintf(fp, "# Generated by shtick - https://github.com/example/shtick\n\n");
+    
     for (int i = 0; i < g_config.group_count; i++) {
         Group *group = &g_config.groups[i];
         
         fprintf(fp, "[%s]\n", group->name);
-        fprintf(fp, "[%s.aliases]\n", group->name);
         
-        for (int j = 0; j < group->alias_count; j++) {
-            Item *alias = &group->aliases[j];
-            char escaped_value[MAX_VALUE * 2];  // Extra space for escaping
-            escape_toml_value(alias->value, escaped_value, sizeof(escaped_value));
-            fprintf(fp, "%s = %s\n", alias->key, escaped_value);
+        // Write aliases
+        if (group->alias_count > 0) {
+            fprintf(fp, "[%s.aliases]\n", group->name);
+            
+            for (int j = 0; j < group->alias_count; j++) {
+                Item *alias = &group->aliases[j];
+                char escaped_value[MAX_VALUE * 2];
+                escape_toml_value(alias->value, escaped_value, sizeof(escaped_value));
+                fprintf(fp, "%s = %s\n", alias->key, escaped_value);
+            }
+            fprintf(fp, "\n");
         }
         
-        // Add empty sections for env_vars and functions
-        fprintf(fp, "\n[%s.env_vars]\n", group->name);
-        
-        for (int j = 0; j < group->env_var_count; j++) {
-            Item *env = &group->env_vars[j];
-            char escaped_value[MAX_VALUE * 2];  // Extra space for escaping
-            escape_toml_value(env->value, escaped_value, sizeof(escaped_value));
-            fprintf(fp, "%s = %s\n", env->key, escaped_value);
+        // Write environment variables
+        if (group->env_var_count > 0) {
+            fprintf(fp, "[%s.env_vars]\n", group->name);
+            
+            for (int j = 0; j < group->env_var_count; j++) {
+                Item *env = &group->env_vars[j];
+                char escaped_value[MAX_VALUE * 2];
+                escape_toml_value(env->value, escaped_value, sizeof(escaped_value));
+                fprintf(fp, "%s = %s\n", env->key, escaped_value);
+            }
+            fprintf(fp, "\n");
         }
         
-        fprintf(fp, "\n[%s.functions]\n", group->name);
-        fprintf(fp, "\n");
+        // Write functions
+        if (group->function_count > 0) {
+            fprintf(fp, "[%s.functions]\n", group->name);
+            
+            for (int j = 0; j < group->function_count; j++) {
+                Function *func = &group->functions[j];
+                char escaped_body[MAX_FUNCTION_BODY * 2];
+                
+                // Functions are always multiline in TOML for clarity
+                escape_toml_multiline(func->body, escaped_body, sizeof(escaped_body));
+                fprintf(fp, "%s = %s\n", func->name, escaped_body);
+            }
+            fprintf(fp, "\n");
+        }
     }
     
     fclose(fp);

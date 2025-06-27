@@ -7,9 +7,9 @@ void show_status(void) {
     
     // Show persistent group
     Group *persistent = find_group("persistent");
-    if (persistent && (persistent->alias_count > 0 || persistent->env_var_count > 0)) {
-        printf("Persistent (always active): %d aliases, %d env vars\n", 
-               persistent->alias_count, persistent->env_var_count);
+    if (persistent && (persistent->alias_count > 0 || persistent->env_var_count > 0 || persistent->function_count > 0)) {
+        printf("Persistent (always active): %d aliases, %d env vars, %d functions\n", 
+               persistent->alias_count, persistent->env_var_count, persistent->function_count);
     } else {
         printf("Persistent: No items\n");
     }
@@ -24,8 +24,9 @@ void show_status(void) {
             if (strcmp(group->name, "persistent") == 0) continue;
             
             const char *status = is_group_active(group->name) ? "ACTIVE" : "inactive";
-            printf("  %s: %d aliases, %d env vars (%s)\n", 
-                   group->name, group->alias_count, group->env_var_count, status);
+            printf("  %s: %d aliases, %d env vars, %d functions (%s)\n", 
+                   group->name, group->alias_count, group->env_var_count, 
+                   group->function_count, status);
         }
     } else {
         printf("No groups configured\n");
@@ -47,6 +48,7 @@ void show_status(void) {
     
     printf("\nQuick commands:\n");
     printf("  shtick alias ll='ls -la'              # Add persistent alias\n");
+    printf("  shtick function mkcd='mkdir -p \"$1\" && cd \"$1\"'  # Add function\n");
     printf("  shtick activate <group>               # Activate group\n");
     printf("  shtick add alias <group> key=value    # Add to specific group\n");
 }
@@ -57,17 +59,35 @@ void show_usage(void) {
     printf("  shtick alias                          Show all aliases\n");
     printf("  shtick alias <key>                    Show specific alias definition\n");
     printf("  shtick alias <key=value>              Add persistent alias\n");
+    printf("\n");
     printf("  shtick env                            Show all environment variables\n");
     printf("  shtick env <key>                      Show specific env var definition\n");
     printf("  shtick env <key=value>                Add persistent env var\n");
+    printf("\n");
+    printf("  shtick function                       Show all functions\n");
+    printf("  shtick function <name>                Show function or create interactively\n");
+    printf("  shtick function <name=body>           Add persistent function\n");
+    printf("  shtick function -f <file> <name>      Add function from file\n");
+    printf("\n");
     printf("  shtick add alias <group> <key=value>  Add alias to group\n");
     printf("  shtick add env <group> <key=value>    Add env var to group\n");
-    printf("  shtick remove <search>                Remove alias/env from any group\n");
+    printf("  shtick add function <group> <name[=body]>  Add function to group\n");
+    printf("\n");
+    printf("  shtick remove <search>                Remove item from any group\n");
     printf("  shtick remove alias <group> <search>  Remove alias from specific group\n");
     printf("  shtick remove env <group> <search>    Remove env var from specific group\n");
+    printf("  shtick remove function <group> <search>  Remove function from specific group\n");
+    printf("\n");
     printf("  shtick activate <group>               Activate a group\n");
     printf("  shtick deactivate <group>             Deactivate a group\n");
     printf("  shtick status                         Show status\n");
     printf("  shtick list                           List all items\n");
     printf("  shtick generate                       Generate shell files\n");
+    printf("\n");
+    printf("Examples:\n");
+    printf("  shtick alias ll='ls -la'              # Quick alias\n");
+    printf("  shtick function mkcd                  # Interactive function editor\n");
+    printf("  shtick function greet='echo \"Hello, $1!\"'  # One-line function\n");
+    printf("  shtick add function work deploy='./scripts/deploy.sh prod'\n");
+    printf("  shtick activate work                  # Activate work environment\n");
 }
