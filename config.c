@@ -1,6 +1,8 @@
 // config.c - Configuration management
 #include "shtick.h"
 #include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 void get_default_config_path(char *path, size_t size) {
     const char *home = getenv("HOME");
@@ -54,6 +56,16 @@ int load_active_groups(void) {
 int save_active_groups(void) {
     char path[MAX_PATH];
     get_active_groups_path(path, sizeof(path));
+    
+    // Ensure directory exists
+    char dir_path[MAX_PATH];
+    strncpy(dir_path, path, sizeof(dir_path) - 1);
+    dir_path[sizeof(dir_path) - 1] = '\0';
+    char *last_slash = strrchr(dir_path, '/');
+    if (last_slash) {
+        *last_slash = '\0';
+        ensure_directory(dir_path);
+    }
     
     FILE *fp = fopen(path, "w");
     if (!fp) {
@@ -318,8 +330,20 @@ int load_config(const char *config_path) {
 }
 
 int save_config(const char *config_path) {
+    // Ensure directory exists
+    char dir_path[MAX_PATH];
+    strncpy(dir_path, config_path, sizeof(dir_path) - 1);
+    dir_path[sizeof(dir_path) - 1] = '\0';
+    char *last_slash = strrchr(dir_path, '/');
+    if (last_slash) {
+        *last_slash = '\0';
+        ensure_directory(dir_path);
+    }
+    
     FILE *fp = fopen(config_path, "w");
     if (!fp) {
+        fprintf(stderr, "Error: Cannot open config file for writing: %s (errno: %d - %s)\n", 
+                config_path, errno, strerror(errno));
         return -1;
     }
     
