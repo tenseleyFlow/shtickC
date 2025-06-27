@@ -13,8 +13,14 @@ int main(int argc, char *argv[]) {
     load_config(g_config.config_path);
     load_active_groups();
     
-    // Ensure we have a persistent directory
-    ensure_directory(g_config.config_path);
+    // Ensure we have the config directory
+    char config_dir[MAX_PATH];
+    strncpy(config_dir, g_config.config_path, sizeof(config_dir) - 1);
+    char *last_slash = strrchr(config_dir, '/');
+    if (last_slash) {
+        *last_slash = '\0';
+        ensure_directory(config_dir);
+    }
     
     // Parse command line
     if (argc < 2) {
