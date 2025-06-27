@@ -1,14 +1,12 @@
 # Makefile for shtick C port
 
 # Compiler settings
-# Note: -D_GNU_SOURCE enables additional features on GNU/Linux systems
-# If you get warnings about format-truncation, they're handled in the code
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 -std=c99 -D_GNU_SOURCE
 TARGET = shtick
 
-# Source files - Added functions.c
-SRCS = main.c config.c groups.c aliases.c env.c functions.c generator.c display.c utils.c escape.c
+# Source files - Including completions.c if you add it
+SRCS = main.c config.c groups.c aliases.c env.c functions.c generator.c display.c utils.c escape.c completions.c
 OBJS = $(SRCS:.c=.o)
 HEADERS = shtick.h
 
@@ -44,17 +42,30 @@ clean:
 debug: CFLAGS += -g -DDEBUG
 debug: clean $(TARGET)
 
-# Run tests (if you add tests later)
+# Run the test harness
 test: $(TARGET)
-	@echo "Running tests..."
-	@./$(TARGET) status
-	@echo "✓ Basic test passed"
+	@echo "Running test suite..."
+	@chmod +x test_harness.sh
+	@./test_harness.sh
+
+# Quick smoke test
+smoke-test: $(TARGET)
+	@echo "Running smoke test..."
+	@./$(TARGET) status >/dev/null && echo "✓ Status command works"
+	@./$(TARGET) init >/dev/null && echo "✓ Init command works"
+	@./$(TARGET) groups >/dev/null && echo "✓ Groups command works"
+
+# Generate shell completions
+completions: $(TARGET)
+	@echo "Generating shell completions..."
+	@./$(TARGET) completions bash 2>/dev/null || echo "Add completions command to generate"
+	@./$(TARGET) completions zsh 2>/dev/null || true
+	@./$(TARGET) completions fish 2>/dev/null || true
 
 # Static analysis
 analyze:
 	@echo "Running static analysis..."
 	@command -v cppcheck >/dev/null 2>&1 && cppcheck --enable=all --suppress=missingIncludeSystem $(SRCS) $(HEADERS) || echo "cppcheck not found"
-	@command -v clang-tidy >/dev/null 2>&1 && clang-tidy $(SRCS) -- $(CFLAGS) || echo "clang-tidy not found"
 
 # Format code
 format:
@@ -67,8 +78,10 @@ help:
 	@echo "  make install - Install to ~/.local/bin"
 	@echo "  make clean   - Remove build artifacts"
 	@echo "  make debug   - Build with debug symbols"
-	@echo "  make test    - Run basic tests"
+	@echo "  make test    - Run full test suite"
+	@echo "  make smoke-test - Quick functionality check"
 	@echo "  make analyze - Run static analysis"
 	@echo "  make format  - Format code with clang-format"
+	@echo "  make completions - Generate shell completions"
 
-.PHONY: all install uninstall clean test debug analyze format help
+.PHONY: all install uninstall clean test smoke-test debug analyze format completions help
