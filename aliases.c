@@ -3,6 +3,18 @@
 #include <ctype.h>
 
 int add_alias(const char *group_name, const char *key, const char *value) {
+    // Validate key format
+    if (!validate_key_format(key)) {
+        fprintf(stderr, "Error: Invalid key format '%s'. Keys must start with a letter or underscore and contain only alphanumeric characters, underscores, or hyphens.\n", key);
+        return -1;
+    }
+    
+    // Validate value
+    if (!validate_alias_value(value)) {
+        fprintf(stderr, "Error: Invalid or potentially dangerous alias value\n");
+        return -1;
+    }
+    
     Group *group = find_or_create_group(group_name);
     if (!group) {
         fprintf(stderr, "Error: Maximum groups reached\n");
@@ -104,6 +116,100 @@ int remove_alias(const char *group_name, const char *search_term) {
         group->alias_count--;
         
         printf("✓ Removed alias '%s' from group '%s'\n", removed_key, group_name);
+        return 1;  // Return 1 to indicate successful removal
+    }
+    
+    return 0;
+}
+
+int remove_alias_global(const char *search_term) {
+    // Collect all matches across all groups
+    typedef struct {
+        int group_index;
+        int alias_index;
+        char group_name[MAX_KEY];
+        char key[MAX_KEY];
+        char value[MAX_VALUE];
+    } Match;
+    
+    Match matches[MAX_ITEMS];
+    int match_count = 0;
+    
+    // Search across all groups
+    for (int g = 0; g < g_config.group_count; g++) {
+        Group *group = &g_config.groups[g];
+        
+        for (int i = 0; i < group->alias_count; i++) {
+            // Convert both to lowercase for comparison
+            char key_lower[MAX_KEY];
+            char search_lower[MAX_KEY];
+            
+            strcpy(key_lower, group->aliases[i].key);
+            strcpy(search_lower, search_term);
+            
+            for (char *p = key_lower; *p; p++) *p = tolower(*p);
+            for (char *p = search_lower; *p; p++) *p = tolower(*p);
+            
+            if (strstr(key_lower, search_lower)) {
+                if (match_count < MAX_ITEMS) {
+                    matches[match_count].group_index = g;
+                    matches[match_count].alias_index = i;
+                    strcpy(matches[match_count].group_name, group->name);
+                    strcpy(matches[match_count].key, group->aliases[i].key);
+                    strcpy(matches[match_count].value, group->aliases[i].value);
+                    match_count++;
+                }
+            }
+        }
+    }
+    
+    if (match_count == 0) {
+        printf("No alias matching '%s' found in any group\n", search_term);
+        return 0;
+    }
+    
+    Match *to_remove = NULL;
+    
+    if (match_count == 1) {
+        to_remove = &matches[0];
+    } else {
+        // Multiple matches, ask user
+        printf("Found %d matches:\n", match_count);
+        for (int i = 0; i < match_count; i++) {
+            const char *status = is_group_active(matches[i].group_name) ? "active" : "inactive";
+            printf("  %d. %s = %s (group: %s, %s)\n", i + 1,
+                   matches[i].key, matches[i].value, matches[i].group_name, status);
+        }
+        
+        printf("Enter number to remove (or 'q' to quit): ");
+        char input[10];
+        if (fgets(input, sizeof(input), stdin)) {
+            if (input[0] == 'q' || input[0] == 'Q') {
+                printf("Cancelled\n");
+                return 0;
+            }
+            
+            int choice = atoi(input);
+            if (choice >= 1 && choice <= match_count) {
+                to_remove = &matches[choice - 1];
+            } else {
+                fprintf(stderr, "Invalid choice\n");
+                return -1;
+            }
+        }
+    }
+    
+    if (to_remove) {
+        // Remove from the group
+        Group *group = &g_config.groups[to_remove->group_index];
+        
+        // Shift remaining items
+        for (int i = to_remove->alias_index; i < group->alias_count - 1; i++) {
+            group->aliases[i] = group->aliases[i + 1];
+        }
+        group->alias_count--;
+        
+        printf("✓ Removed alias '%s' from group '%s'\n", to_remove->key, to_remove->group_name);
         return 1;  // Return 1 to indicate successful removal
     }
     
