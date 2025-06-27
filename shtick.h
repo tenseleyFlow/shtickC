@@ -61,6 +61,10 @@ bool is_group_active(const char *group_name);
 // groups.c - Group management
 Group* find_or_create_group(const char *name);
 Group* find_group(const char *name);
+int create_group(const char *group_name);
+int delete_group(const char *group_name);
+int rename_group(const char *old_name, const char *new_name);
+void list_groups(void);
 int activate_group(const char *group_name);
 int deactivate_group(const char *group_name);
 
@@ -105,6 +109,9 @@ int parse_assignment(const char *assignment, char *key, char *value);
 bool parse_toml_line(const char *line, char *section, char *key, char *value);
 int parse_function_assignment(const char *assignment, char *name, char *body);
 int edit_text_interactive(const char *initial_content, char *result, size_t result_size);
+void trim_whitespace(char *str);
+bool is_valid_identifier(const char *str);
+void expand_tilde(const char *path, char *expanded, size_t size);
 
 // escape.c - Shell escaping utilities
 char* escape_bash_value(const char *value, char *buffer, size_t size);
