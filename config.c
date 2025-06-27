@@ -145,6 +145,26 @@ int load_config(const char *config_path) {
                 size_t len = end - line - 1;
                 strncpy(section, line + 1, len);
                 section[len] = '\0';
+                
+                // Check if this is a plain group section (no dot)
+                if (!strchr(section, '.')) {
+                    // This is a group declaration, ensure it exists
+                    Group *group = NULL;
+                    for (int i = 0; i < g_config.group_count; i++) {
+                        if (strcmp(g_config.groups[i].name, section) == 0) {
+                            group = &g_config.groups[i];
+                            break;
+                        }
+                    }
+                    
+                    if (!group && g_config.group_count < MAX_GROUPS) {
+                        group = &g_config.groups[g_config.group_count++];
+                        strcpy(group->name, section);
+                        group->alias_count = 0;
+                        group->env_var_count = 0;
+                        group->function_count = 0;
+                    }
+                }
             }
             continue;
         }
@@ -354,6 +374,11 @@ int save_config(const char *config_path) {
         Group *group = &g_config.groups[i];
         
         fprintf(fp, "[%s]\n", group->name);
+        
+        // Write a marker for empty groups so they're loaded properly
+        if (group->alias_count == 0 && group->env_var_count == 0 && group->function_count == 0) {
+            fprintf(fp, "# Empty group\n");
+        }
         
         // Write aliases
         if (group->alias_count > 0) {

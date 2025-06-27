@@ -182,7 +182,82 @@ test_simple_function() {
     assert_file_contains "$TEST_HOME/.config/shtick/persistent/all.fish" 'function hello' "Fish file should contain function" || return 1
 }
 
-# Test: Group creation and activation
+# Test: Create group
+test_create_group() {
+    output=$($SHTICK_BIN create work 2>&1)
+    assert_contains "$output" "Created group 'work'" "Should create group" || return 1
+    
+    # Check config file contains the group
+    assert_file_contains "$TEST_HOME/.config/shtick/config.toml" '[work]' "Config should contain work group" || return 1
+    
+    # Try creating same group again
+    output=$($SHTICK_BIN create work 2>&1)
+    assert_contains "$output" "already exists" "Should report group already exists" || return 1
+    
+    # Try creating group with invalid name
+    output=$($SHTICK_BIN create "bad name" 2>&1)
+    assert_contains "$output" "Error" "Should reject invalid group name" || return 1
+}
+
+# Test: Delete group
+test_delete_group() {
+    # Create a group first
+    $SHTICK_BIN create tempgroup || return 1
+    
+    # Add some items to it
+    $SHTICK_BIN add alias tempgroup "ta=test alias" || return 1
+    
+    # Delete with confirmation (simulate 'y' response)
+    echo "y" | $SHTICK_BIN delete tempgroup || return 1
+    
+    # Check it's gone from config
+    if grep -q "tempgroup" "$TEST_HOME/.config/shtick/config.toml" 2>/dev/null; then
+        echo "Group should be deleted from config"
+        return 1
+    fi
+}
+
+# Test: Rename group
+test_rename_group() {
+    # Create a group
+    $SHTICK_BIN create oldname || return 1
+    $SHTICK_BIN add alias oldname "oa=old alias" || return 1
+    
+    # Rename it
+    output=$($SHTICK_BIN rename oldname newname 2>&1)
+    assert_contains "$output" "Renamed group 'oldname' to 'newname'" "Should rename group" || return 1
+    
+    # Check new name exists in config
+    assert_file_contains "$TEST_HOME/.config/shtick/config.toml" '[newname]' "Config should contain renamed group" || return 1
+    
+    # Check old name is gone
+    if grep -q '\[oldname\]' "$TEST_HOME/.config/shtick/config.toml" 2>/dev/null; then
+        echo "Old group name should not exist in config"
+        return 1
+    fi
+}
+
+# Test: List groups
+test_list_groups() {
+    # Create some groups
+    $SHTICK_BIN create work || return 1
+    $SHTICK_BIN create personal || return 1
+    
+    # Add items to groups
+    $SHTICK_BIN add alias work "dc=docker-compose" || return 1
+    $SHTICK_BIN add env personal "PERSONAL=true" || return 1
+    
+    # List groups
+    output=$($SHTICK_BIN groups 2>&1)
+    assert_contains "$output" "work" "Should list work group" || return 1
+    assert_contains "$output" "personal" "Should list personal group" || return 1
+    assert_contains "$output" "persistent" "Should list persistent group" || return 1
+    
+    # Should show counts
+    assert_contains "$output" "1" "Should show item counts" || return 1
+}
+
+# Test: Group activation
 test_group_activation() {
     # Add alias to a new group
     $SHTICK_BIN add alias work "dc=docker-compose" || return 1
@@ -248,6 +323,25 @@ test_status_command() {
     assert_contains "$output" "work" "Status should show work group" || return 1
 }
 
+# Test: Error handling for reserved group names
+test_reserved_group_names() {
+    # Try to create persistent group
+    output=$($SHTICK_BIN create persistent 2>&1)
+    assert_contains "$output" "reserved" "Should reject creating persistent group" || return 1
+    
+    # Try to delete persistent group
+    output=$($SHTICK_BIN delete persistent 2>&1)
+    assert_contains "$output" "Cannot delete" "Should reject deleting persistent group" || return 1
+    
+    # Try to rename to/from persistent
+    $SHTICK_BIN create testgroup || return 1
+    output=$($SHTICK_BIN rename testgroup persistent 2>&1)
+    assert_contains "$output" "Cannot rename" "Should reject renaming to persistent" || return 1
+    
+    output=$($SHTICK_BIN rename persistent testgroup 2>&1)
+    assert_contains "$output" "Cannot rename" "Should reject renaming from persistent" || return 1
+}
+
 # Main test runner
 main() {
     echo "=== Shtick Test Suite ==="
@@ -258,11 +352,16 @@ main() {
     run_test "Alias with quotes" test_alias_with_quotes
     run_test "Environment variable" test_env_var
     run_test "Simple function" test_simple_function
+    run_test "Create group" test_create_group
+    run_test "Delete group" test_delete_group
+    run_test "Rename group" test_rename_group
+    run_test "List groups" test_list_groups
     run_test "Group activation" test_group_activation
     run_test "Remove alias" test_remove_alias
     run_test "Special characters" test_special_chars
     run_test "List command" test_list_command
     run_test "Status command" test_status_command
+    run_test "Reserved group names" test_reserved_group_names
     
     # Summary
     echo
