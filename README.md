@@ -3,9 +3,6 @@
 
 **usage**
 ```
-shtick - Shell configuration manager (C port)
-
-Usage:
   shtick alias                          Show all aliases
   shtick alias <key>                    Show specific alias definition
   shtick alias <key=value>              Add persistent alias
@@ -28,18 +25,48 @@ Usage:
   shtick remove env <group> <search>    Remove env var from specific group
   shtick remove function <group> <search>  Remove function from specific group
 
+  shtick create <group>                 Create a new group
+  shtick delete <group>                 Delete a group and all its items
+  shtick rename <old> <new>             Rename a group
+  shtick groups                         List all groups
+
   shtick activate <group>               Activate a group
   shtick deactivate <group>             Deactivate a group
   shtick status                         Show status
   shtick list                           List all items
-  shtick generate                       Generate shell files
+  shtick generate [shell|all]           Generate shell files
+  shtick shells                         List all supported shells
+  shtick init [shell]                   Show setup instructions
+  shtick completions [shell|all]        Generate shell completions
 
 Examples:
   shtick alias ll='ls -la'              # Quick alias
   shtick function mkcd                  # Interactive function editor
   shtick function greet='echo "Hello, $1!"'  # One-line function
+  shtick create work                    # Create 'work' group
   shtick add function work deploy='./scripts/deploy.sh prod'
   shtick activate work                  # Activate work environment
+  shtick groups                         # List all groups
+  shtick init                           # Show setup instructions
+  shtick generate all                   # Generate for all 16 shells
+  shtick completions bash               # Generate bash completions
+
+Supported shells (16 total):
+  Common: bash, zsh, fish, ksh, tcsh, csh, dash, pwsh
+  Modern: xonsh, elvish, nu, ion
+  Others: ash, mksh, pdksh, yash
+
+Generate for all shells:
+  shtick generate all                   # Generate for all 16 shells
+  shtick completions all                # Generate completions for all shells
+
+Completion Setup:
+  Bash:     source ~/.config/shtick/completion.bash
+  Zsh:      fpath=(~/.config/shtick $fpath)
+  Fish:     Completions load automatically
+  Pwsh:     . ~/.config/shtick/completion.ps1
+  Elvish:   use shtick-completions
+  Nu:       source ~/.config/nu/completions/shtick-completions.nu
 ```
 
 ### what is this?
