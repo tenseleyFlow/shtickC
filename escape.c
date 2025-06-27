@@ -190,6 +190,30 @@ bool validate_alias_value(const char *value) {
     return true;
 }
 
+// Validate environment variable value
+bool validate_env_value(const char *value) {
+    if (!value) return false;
+    
+    // Check for empty value - allowed for env vars (unset)
+    // But we'll warn about it
+    if (strlen(value) == 0) {
+        printf("⚠️  Warning: Empty value will unset the environment variable\n");
+        return true;
+    }
+    
+    // Check for excessive length
+    if (strlen(value) > MAX_VALUE - 100) {  // Leave some room for escaping
+        return false;
+    }
+    
+    // Env vars can contain almost anything, just warn about shell expansion
+    if (strchr(value, '$') || strchr(value, '`') || strstr(value, "$(")) {
+        printf("💡 Note: Variable expansion ($VAR, `cmd`, $(cmd)) will be evaluated by the shell\n");
+    }
+    
+    return true;
+}
+
 // Validate key format (alphanumeric, underscore, hyphen)
 bool validate_key_format(const char *key) {
     if (!key || strlen(key) == 0) return false;
@@ -208,4 +232,31 @@ bool validate_key_format(const char *key) {
     if (strlen(key) > MAX_KEY - 1) return false;
     
     return true;
+}
+
+// Check if this is a critical environment variable
+bool is_critical_env_var(const char *key) {
+    const char *critical[] = {
+        "PATH",
+        "LD_LIBRARY_PATH",
+        "LD_PRELOAD",
+        "HOME",
+        "USER",
+        "SHELL",
+        "TERM",
+        "DISPLAY",
+        "LANG",
+        "LC_ALL",
+        "PS1",
+        "IFS",
+        NULL
+    };
+    
+    for (int i = 0; critical[i]; i++) {
+        if (strcmp(key, critical[i]) == 0) {
+            return true;
+        }
+    }
+    
+    return false;
 }
