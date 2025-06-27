@@ -314,6 +314,15 @@ int main(int argc, char *argv[]) {
         generate_shell_file("fish");
         printf("✓ Done! Source ~/.config/shtick/load_active.<shell> in your shell config\n");
     }
+    else if (strcmp(command, "completions") == 0) {
+        // NEW: Generate shell completions
+        const char *shell = argc >= 3 ? argv[2] : "all";
+        if (generate_completions(shell) == 0) {
+            if (strcmp(shell, "all") == 0) {
+                printf("✓ Generated completions for all shells\n");
+            }
+        }
+    }
     else {
         fprintf(stderr, "Unknown command: %s\n", command);
         show_usage();

@@ -123,4 +123,7 @@ bool validate_key_format(const char *key);
 bool validate_env_value(const char *value);
 bool is_critical_env_var(const char *key);
 
+// completions.c - Shell completion generation (NEW)
+int generate_completions(const char *shell);
+
 #endif // SHTICK_H

@@ -88,6 +88,8 @@ void show_usage(void) {
     printf("  shtick status                         Show status\n");
     printf("  shtick list                           List all items\n");
     printf("  shtick generate                       Generate shell files\n");
+    printf("  shtick init [shell]                   Show setup instructions\n");
+    printf("  shtick completions [shell]            Generate shell completions\n");
     printf("\n");
     printf("Examples:\n");
     printf("  shtick alias ll='ls -la'              # Quick alias\n");
@@ -97,4 +99,11 @@ void show_usage(void) {
     printf("  shtick add function work deploy='./scripts/deploy.sh prod'\n");
     printf("  shtick activate work                  # Activate work environment\n");
     printf("  shtick groups                         # List all groups\n");
+    printf("  shtick init                           # Show setup instructions\n");
+    printf("  shtick completions bash               # Generate bash completions\n");
+    printf("\n");
+    printf("Completion Setup:\n");
+    printf("  Bash:  source ~/.config/shtick/completion.bash\n");
+    printf("  Zsh:   fpath=(~/.config/shtick $fpath)\n");
+    printf("  Fish:  Completions load automatically\n");
 }
