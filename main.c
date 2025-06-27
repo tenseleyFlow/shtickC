@@ -218,6 +218,46 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    else if (strcmp(command, "create") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Usage: shtick create <group_name>\n");
+            return 1;
+        }
+        
+        if (create_group(argv[2]) == 0) {
+            save_config(g_config.config_path);
+            printf("💡 Tip: Activate with 'shtick activate %s'\n", argv[2]);
+        }
+    }
+    else if (strcmp(command, "delete") == 0) {
+        if (argc != 3) {
+            fprintf(stderr, "Usage: shtick delete <group_name>\n");
+            return 1;
+        }
+        
+        if (delete_group(argv[2]) == 0) {
+            save_config(g_config.config_path);
+            generate_shell_file("bash");
+            generate_shell_file("zsh");
+            generate_shell_file("fish");
+        }
+    }
+    else if (strcmp(command, "rename") == 0) {
+        if (argc != 4) {
+            fprintf(stderr, "Usage: shtick rename <old_name> <new_name>\n");
+            return 1;
+        }
+        
+        if (rename_group(argv[2], argv[3]) == 0) {
+            save_config(g_config.config_path);
+            generate_shell_file("bash");
+            generate_shell_file("zsh");
+            generate_shell_file("fish");
+        }
+    }
+    else if (strcmp(command, "groups") == 0) {
+        list_groups();
+    }
     else if (strcmp(command, "activate") == 0 && argc == 3) {
         if (activate_group(argv[2]) == 0) {
             generate_shell_file("bash");

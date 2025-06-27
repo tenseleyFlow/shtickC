@@ -78,6 +78,11 @@ void show_usage(void) {
     printf("  shtick remove env <group> <search>    Remove env var from specific group\n");
     printf("  shtick remove function <group> <search>  Remove function from specific group\n");
     printf("\n");
+    printf("  shtick create <group>                 Create a new group\n");
+    printf("  shtick delete <group>                 Delete a group and all its items\n");
+    printf("  shtick rename <old> <new>             Rename a group\n");
+    printf("  shtick groups                         List all groups\n");
+    printf("\n");
     printf("  shtick activate <group>               Activate a group\n");
     printf("  shtick deactivate <group>             Deactivate a group\n");
     printf("  shtick status                         Show status\n");
@@ -88,6 +93,8 @@ void show_usage(void) {
     printf("  shtick alias ll='ls -la'              # Quick alias\n");
     printf("  shtick function mkcd                  # Interactive function editor\n");
     printf("  shtick function greet='echo \"Hello, $1!\"'  # One-line function\n");
+    printf("  shtick create work                    # Create 'work' group\n");
     printf("  shtick add function work deploy='./scripts/deploy.sh prod'\n");
     printf("  shtick activate work                  # Activate work environment\n");
+    printf("  shtick groups                         # List all groups\n");
 }
