@@ -3,6 +3,18 @@
 #include <ctype.h>
 
 int add_alias(const char *group_name, const char *key, const char *value) {
+    // Validate key format
+    if (!validate_key_format(key)) {
+        fprintf(stderr, "Error: Invalid key format '%s'. Keys must start with a letter or underscore and contain only alphanumeric characters, underscores, or hyphens.\n", key);
+        return -1;
+    }
+    
+    // Validate value
+    if (!validate_alias_value(value)) {
+        fprintf(stderr, "Error: Invalid or potentially dangerous alias value\n");
+        return -1;
+    }
+    
     Group *group = find_or_create_group(group_name);
     if (!group) {
         fprintf(stderr, "Error: Maximum groups reached\n");
