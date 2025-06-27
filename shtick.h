@@ -98,6 +98,8 @@ bool validate_function_body(const char *body);
 
 // generator.c - Shell file generation
 int generate_shell_file(const char *shell_type);
+int generate_all_shells(void);
+void list_supported_shells(void);
 
 // display.c - Display and status functions
 void show_status(void);
@@ -123,7 +125,7 @@ bool validate_key_format(const char *key);
 bool validate_env_value(const char *value);
 bool is_critical_env_var(const char *key);
 
-// completions.c - Shell completion generation (NEW)
+// completions.c - Shell completion generation
 int generate_completions(const char *shell);
 
 #endif // SHTICK_H
