@@ -141,8 +141,9 @@ int save_config(const char *config_path) {
         
         for (int j = 0; j < group->alias_count; j++) {
             Item *alias = &group->aliases[j];
-            // Simple escaping - just quote everything
-            fprintf(fp, "%s = \"%s\"\n", alias->key, alias->value);
+            char escaped_value[MAX_VALUE * 2];  // Extra space for escaping
+            escape_toml_value(alias->value, escaped_value, sizeof(escaped_value));
+            fprintf(fp, "%s = %s\n", alias->key, escaped_value);
         }
         
         // Add empty sections for env_vars and functions

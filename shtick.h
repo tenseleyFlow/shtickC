@@ -74,4 +74,11 @@ void ensure_directory(const char *path);
 int parse_assignment(const char *assignment, char *key, char *value);
 bool parse_toml_line(const char *line, char *section, char *key, char *value);
 
+// escape.c - Shell escaping utilities
+char* escape_bash_value(const char *value, char *buffer, size_t size);
+char* escape_fish_value(const char *value, char *buffer, size_t size);
+char* escape_toml_value(const char *value, char *buffer, size_t size);
+bool validate_alias_value(const char *value);
+bool validate_key_format(const char *key);
+
 #endif // SHTICK_H
