@@ -33,8 +33,11 @@ int add_alias(const char *group_name, const char *key, const char *value) {
     // Add new alias
     if (group->alias_count < MAX_ITEMS) {
         Item *alias = &group->aliases[group->alias_count++];
-        strcpy(alias->key, key);
-        strcpy(alias->value, value);
+        // SECURITY FIX: Use strncpy with proper bounds
+        strncpy(alias->key, key, MAX_KEY - 1);
+        alias->key[MAX_KEY - 1] = '\0';
+        strncpy(alias->value, value, MAX_VALUE - 1);
+        alias->value[MAX_VALUE - 1] = '\0';
         return 0;
     }
     
