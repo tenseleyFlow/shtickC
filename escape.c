@@ -2,219 +2,164 @@
 #include "shtick.h"
 #include <ctype.h>
 
-// Escape a value for bash/zsh - handles single quotes by closing, escaping, reopening
+// Escape value for bash/zsh
 char* escape_bash_value(const char *value, char *buffer, size_t size) {
     if (!value || !buffer || size == 0) return NULL;
     
+    // For bash/zsh, we'll use single quotes and handle embedded single quotes
     size_t pos = 0;
-    buffer[0] = '\0';
+    buffer[pos++] = '\'';
     
-    // Start with single quote
-    if (pos < size - 1) buffer[pos++] = '\'';
-    
-    for (const char *p = value; *p && pos < size - 4; p++) {
+    for (const char *p = value; *p && pos < size - 2; p++) {
         if (*p == '\'') {
-            // Close quote, escape apostrophe, reopen quote
+            // End quote, escape single quote, start new quote
             if (pos + 4 < size) {
                 buffer[pos++] = '\'';
                 buffer[pos++] = '\\';
                 buffer[pos++] = '\'';
                 buffer[pos++] = '\'';
+            } else {
+                break;
             }
         } else {
             buffer[pos++] = *p;
         }
     }
     
-    // End with single quote
-    if (pos < size - 1) buffer[pos++] = '\'';
-    buffer[pos] = '\0';
-    
-    return buffer;
-}
-
-// Escape a value for fish - uses single quotes with doubled quotes for escaping
-char* escape_fish_value(const char *value, char *buffer, size_t size) {
-    if (!value || !buffer || size == 0) return NULL;
-    
-    size_t pos = 0;
-    buffer[0] = '\0';
-    
-    // Start with single quote
-    if (pos < size - 1) buffer[pos++] = '\'';
-    
-    for (const char *p = value; *p && pos < size - 2; p++) {
-        if (*p == '\'') {
-            // Double the quote
-            if (pos + 2 < size) {
-                buffer[pos++] = '\'';
-                buffer[pos++] = '\'';
-            }
-        } else if (*p == '\\') {
-            // Double backslashes in fish
-            if (pos + 2 < size) {
-                buffer[pos++] = '\\';
-                buffer[pos++] = '\\';
-            }
-        } else {
-            buffer[pos++] = *p;
-        }
-    }
-    
-    // End with single quote
-    if (pos < size - 1) buffer[pos++] = '\'';
-    buffer[pos] = '\0';
-    
-    return buffer;
-}
-
-// Escape a value for TOML - prefers single quotes for multi-line, double quotes otherwise
-char* escape_toml_value(const char *value, char *buffer, size_t size) {
-    if (!value || !buffer || size == 0) return NULL;
-    
-    // Check if value contains newlines
-    if (strchr(value, '\n') || strchr(value, '\r')) {
-        // Use triple quotes for multi-line
-        if (strstr(value, "'''")) {
-            // Contains triple quotes - use double quoted with escaping
-            size_t pos = 0;
-            buffer[pos++] = '"';
-            
-            for (const char *p = value; *p && pos < size - 2; p++) {
-                switch (*p) {
-                    case '"':
-                        if (pos + 2 < size) {
-                            buffer[pos++] = '\\';
-                            buffer[pos++] = '"';
-                        }
-                        break;
-                    case '\\':
-                        if (pos + 2 < size) {
-                            buffer[pos++] = '\\';
-                            buffer[pos++] = '\\';
-                        }
-                        break;
-                    case '\n':
-                        if (pos + 2 < size) {
-                            buffer[pos++] = '\\';
-                            buffer[pos++] = 'n';
-                        }
-                        break;
-                    case '\r':
-                        if (pos + 2 < size) {
-                            buffer[pos++] = '\\';
-                            buffer[pos++] = 'r';
-                        }
-                        break;
-                    case '\t':
-                        if (pos + 2 < size) {
-                            buffer[pos++] = '\\';
-                            buffer[pos++] = 't';
-                        }
-                        break;
-                    default:
-                        if (pos < size - 1) buffer[pos++] = *p;
-                }
-            }
-            
-            if (pos < size - 1) buffer[pos++] = '"';
-            buffer[pos] = '\0';
-        } else {
-            // Use triple quotes
-            snprintf(buffer, size, "'''\n%s'''", value);
-        }
-    } else {
-        // Single line - use double quotes with escaping
-        size_t pos = 0;
-        buffer[pos++] = '"';
-        
-        for (const char *p = value; *p && pos < size - 2; p++) {
-            switch (*p) {
-                case '"':
-                    if (pos + 2 < size) {
-                        buffer[pos++] = '\\';
-                        buffer[pos++] = '"';
-                    }
-                    break;
-                case '\\':
-                    if (pos + 2 < size) {
-                        buffer[pos++] = '\\';
-                        buffer[pos++] = '\\';
-                    }
-                    break;
-                case '\t':
-                    if (pos + 2 < size) {
-                        buffer[pos++] = '\\';
-                        buffer[pos++] = 't';
-                    }
-                    break;
-                default:
-                    if (pos < size - 1) buffer[pos++] = *p;
-            }
-        }
-        
-        if (pos < size - 1) buffer[pos++] = '"';
+    if (pos < size) {
+        buffer[pos++] = '\'';
         buffer[pos] = '\0';
     }
     
     return buffer;
 }
 
-// Validate that a value doesn't contain obviously dangerous shell constructs
-bool validate_alias_value(const char *value) {
-    if (!value) return false;
+// Escape value for fish
+char* escape_fish_value(const char *value, char *buffer, size_t size) {
+    if (!value || !buffer || size == 0) return NULL;
     
-    // Check for empty value
-    if (strlen(value) == 0) return false;
+    // For fish, we use single quotes and double any embedded single quotes
+    size_t pos = 0;
+    buffer[pos++] = '\'';
     
-    // Check for some dangerous patterns (this is not exhaustive!)
-    const char *dangerous[] = {
-        "rm -rf /",
-        ":(){ :|:& };:",  // Fork bomb
-        "> /dev/sda",
-        "dd if=/dev/zero of=/dev/",
-        NULL
-    };
-    
-    for (int i = 0; dangerous[i]; i++) {
-        if (strstr(value, dangerous[i])) {
-            return false;
+    for (const char *p = value; *p && pos < size - 2; p++) {
+        if (*p == '\'') {
+            // Fish escapes single quotes by doubling them
+            if (pos + 2 < size) {
+                buffer[pos++] = '\'';
+                buffer[pos++] = '\'';
+            } else {
+                break;
+            }
+        } else {
+            buffer[pos++] = *p;
         }
     }
     
-    // Check for excessive length
-    if (strlen(value) > MAX_VALUE - 100) {  // Leave some room for escaping
-        return false;
+    if (pos < size) {
+        buffer[pos++] = '\'';
+        buffer[pos] = '\0';
     }
     
-    return true;
+    return buffer;
 }
 
-// Validate environment variable value
-bool validate_env_value(const char *value) {
+// Escape value for TOML
+char* escape_toml_value(const char *value, char *buffer, size_t size) {
+    if (!value || !buffer || size == 0) return NULL;
+    
+    // Check if value contains special characters
+    bool needs_quotes = false;
+    for (const char *p = value; *p; p++) {
+        if (*p == '\n' || *p == '\r' || *p == '\t' || *p == '"' || *p == '\\') {
+            needs_quotes = true;
+            break;
+        }
+    }
+    
+    if (!needs_quotes) {
+        // Simple value - just wrap in double quotes
+        snprintf(buffer, size, "\"%s\"", value);
+        return buffer;
+    }
+    
+    // Need to escape special characters
+    size_t pos = 0;
+    buffer[pos++] = '"';
+    
+    for (const char *p = value; *p && pos < size - 2; p++) {
+        switch (*p) {
+            case '"':
+                if (pos + 2 < size) {
+                    buffer[pos++] = '\\';
+                    buffer[pos++] = '"';
+                }
+                break;
+            case '\\':
+                if (pos + 2 < size) {
+                    buffer[pos++] = '\\';
+                    buffer[pos++] = '\\';
+                }
+                break;
+            case '\n':
+                if (pos + 2 < size) {
+                    buffer[pos++] = '\\';
+                    buffer[pos++] = 'n';
+                }
+                break;
+            case '\r':
+                if (pos + 2 < size) {
+                    buffer[pos++] = '\\';
+                    buffer[pos++] = 'r';
+                }
+                break;
+            case '\t':
+                if (pos + 2 < size) {
+                    buffer[pos++] = '\\';
+                    buffer[pos++] = 't';
+                }
+                break;
+            default:
+                buffer[pos++] = *p;
+        }
+    }
+    
+    if (pos < size) {
+        buffer[pos++] = '"';
+        buffer[pos] = '\0';
+    }
+    
+    return buffer;
+}
+
+// Escape multiline value for TOML
+char* escape_toml_multiline(const char *value, char *buffer, size_t size) {
+    if (!value || !buffer || size == 0) return NULL;
+    
+    // Use triple quotes for multiline
+    snprintf(buffer, size, "'''\n%s'''", value);
+    
+    return buffer;
+}
+
+// Validate alias value
+bool validate_alias_value(const char *value) {
     if (!value) return false;
     
-    // Check for empty value - allowed for env vars (unset)
-    // But we'll warn about it
-    if (strlen(value) == 0) {
-        printf("⚠️  Warning: Empty value will unset the environment variable\n");
-        return true;
-    }
-    
     // Check for excessive length
-    if (strlen(value) > MAX_VALUE - 100) {  // Leave some room for escaping
+    if (strlen(value) > MAX_VALUE - 10) {
         return false;
     }
     
-    // Env vars can contain almost anything, just warn about shell expansion
-    if (strchr(value, '$') || strchr(value, '`') || strstr(value, "$(")) {
-        printf("💡 Note: Variable expansion ($VAR, `cmd`, $(cmd)) will be evaluated by the shell\n");
+    // Warn about potentially dangerous patterns
+    if (strstr(value, "rm -rf /") || strstr(value, ":(){ :|:& };:")) {
+        printf("⚠️  Warning: Alias contains potentially dangerous commands\n");
     }
     
     return true;
 }
 
-// Validate key format (alphanumeric, underscore, hyphen)
+// Validate key format
 bool validate_key_format(const char *key) {
     if (!key || strlen(key) == 0) return false;
     
@@ -234,22 +179,25 @@ bool validate_key_format(const char *key) {
     return true;
 }
 
-// Check if this is a critical environment variable
+// Validate environment variable value
+bool validate_env_value(const char *value) {
+    if (!value) return true;  // Empty values are allowed (unsets the var)
+    
+    // Check for excessive length
+    if (strlen(value) > MAX_VALUE - 10) {
+        return false;
+    }
+    
+    // No other restrictions - env vars can contain anything
+    return true;
+}
+
+// Check if an environment variable is critical
 bool is_critical_env_var(const char *key) {
     const char *critical[] = {
-        "PATH",
-        "LD_LIBRARY_PATH",
-        "LD_PRELOAD",
-        "HOME",
-        "USER",
-        "SHELL",
-        "TERM",
-        "DISPLAY",
-        "LANG",
-        "LC_ALL",
-        "PS1",
-        "IFS",
-        NULL
+        "PATH", "HOME", "USER", "SHELL", "TERM", "LANG", "LC_ALL",
+        "LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH", "PYTHONPATH",
+        "PS1", "PS2", "IFS", NULL
     };
     
     for (int i = 0; critical[i]; i++) {
