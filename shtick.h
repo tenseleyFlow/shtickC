@@ -12,6 +12,7 @@
 #define MAX_LINE 4096
 #define MAX_KEY 64
 #define MAX_VALUE 4096
+#define MAX_FUNCTION_BODY 8192
 #define MAX_GROUPS 100
 #define MAX_ITEMS 1000
 #define MAX_ACTIVE_GROUPS 100
@@ -24,10 +25,17 @@ typedef struct {
 
 typedef struct {
     char name[MAX_KEY];
+    char body[MAX_FUNCTION_BODY];
+} Function;
+
+typedef struct {
+    char name[MAX_KEY];
     Item aliases[MAX_ITEMS];
     int alias_count;
     Item env_vars[MAX_ITEMS];
     int env_var_count;
+    Function functions[MAX_ITEMS];
+    int function_count;
 } Group;
 
 typedef struct {
@@ -72,6 +80,18 @@ void show_env_definition(const char *env_name);
 void show_all_envs(void);
 void list_envs(void);
 
+// functions.c - Function management
+int add_function(const char *group_name, const char *name, const char *body);
+int add_function_from_file(const char *group_name, const char *name, const char *filename);
+int add_function_interactive(const char *group_name, const char *name);
+int remove_function(const char *group_name, const char *search_term);
+int remove_function_global(const char *search_term);
+void show_function_definition(const char *func_name);
+void show_all_functions(void);
+void list_functions(void);
+bool validate_function_name(const char *name);
+bool validate_function_body(const char *body);
+
 // generator.c - Shell file generation
 int generate_shell_file(const char *shell_type);
 
@@ -83,11 +103,14 @@ void show_usage(void);
 void ensure_directory(const char *path);
 int parse_assignment(const char *assignment, char *key, char *value);
 bool parse_toml_line(const char *line, char *section, char *key, char *value);
+int parse_function_assignment(const char *assignment, char *name, char *body);
+int edit_text_interactive(const char *initial_content, char *result, size_t result_size);
 
 // escape.c - Shell escaping utilities
 char* escape_bash_value(const char *value, char *buffer, size_t size);
 char* escape_fish_value(const char *value, char *buffer, size_t size);
 char* escape_toml_value(const char *value, char *buffer, size_t size);
+char* escape_toml_multiline(const char *value, char *buffer, size_t size);
 bool validate_alias_value(const char *value);
 bool validate_key_format(const char *key);
 bool validate_env_value(const char *value);

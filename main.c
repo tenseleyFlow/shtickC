@@ -2,247 +2,247 @@
 #include "shtick.h"
 #include <unistd.h>
 
-// Global config instance
-Config g_config = {0};
+// Global configuration
+Config g_config;
 
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        show_usage();
-        return 1;
-    }
-    
-    // Get config path
+    // Initialize config path
     get_default_config_path(g_config.config_path, sizeof(g_config.config_path));
     
-    // Ensure config directory exists
-    char config_dir[MAX_PATH];
-    strcpy(config_dir, g_config.config_path);
-    char *last_slash = strrchr(config_dir, '/');
-    if (last_slash) {
-        *last_slash = '\0';
-        ensure_directory(config_dir);
-    }
-    
-    // Load existing config and active groups
+    // Load configuration
     load_config(g_config.config_path);
     load_active_groups();
     
+    // Ensure we have a persistent directory
+    ensure_directory(g_config.config_path);
+    
+    // Parse command line
+    if (argc < 2) {
+        show_usage();
+        return 0;
+    }
+    
+    const char *command = argv[1];
+    
     // Handle commands
-    if (strcmp(argv[1], "alias") == 0) {
-        if (argc < 3) {
-            // No argument - show all aliases
+    if (strcmp(command, "alias") == 0) {
+        if (argc == 2) {
+            // Show all aliases
             show_all_aliases();
-            return 0;
-        }
-        
-        // Check if it's a query (no '=' sign) or an assignment
-        if (strchr(argv[2], '=') == NULL) {
-            // Query mode - show alias definition
-            show_alias_definition(argv[2]);
-        } else {
-            // Assignment mode - add alias
-            char key[MAX_KEY];
-            char value[MAX_VALUE];
-            
-            if (parse_assignment(argv[2], key, value) != 0) {
-                return 1;
-            }
-            
-            if (add_alias("persistent", key, value) == 0) {
-                save_config(g_config.config_path);
-                printf("✓ Added alias '%s' = '%s' to persistent group (always active)\n", key, value);
-                
-                // Generate shell files for common shells
-                generate_shell_file("bash");
-                generate_shell_file("zsh");
-                generate_shell_file("fish");
-                
-                printf("\nTo load changes immediately:\n");
-                printf("  source ~/.config/shtick/load_active.bash   # For bash\n");
-                printf("  source ~/.config/shtick/load_active.zsh    # For zsh\n");
+        } else if (argc == 3) {
+            if (strchr(argv[2], '=')) {
+                // Add alias to persistent group
+                char key[MAX_KEY], value[MAX_VALUE];
+                if (parse_assignment(argv[2], key, value) == 0) {
+                    add_alias("persistent", key, value);
+                    save_config(g_config.config_path);
+                    printf("✓ Added alias '%s' to persistent group\n", key);
+                    generate_shell_file("bash");
+                    generate_shell_file("zsh");
+                    generate_shell_file("fish");
+                }
+            } else {
+                // Show specific alias
+                show_alias_definition(argv[2]);
             }
         }
-        
-    } else if (strcmp(argv[1], "env") == 0) {
-        if (argc < 3) {
-            // No argument - show all env vars
+    }
+    else if (strcmp(command, "env") == 0) {
+        if (argc == 2) {
+            // Show all env vars
             show_all_envs();
-            return 0;
-        }
-        
-        // Check if it's a query (no '=' sign) or an assignment
-        if (strchr(argv[2], '=') == NULL) {
-            // Query mode - show env definition
-            show_env_definition(argv[2]);
-        } else {
-            // Assignment mode - add env var
-            char key[MAX_KEY];
-            char value[MAX_VALUE];
-            
-            if (parse_assignment(argv[2], key, value) != 0) {
-                return 1;
+        } else if (argc == 3) {
+            if (strchr(argv[2], '=')) {
+                // Add env var to persistent group
+                char key[MAX_KEY], value[MAX_VALUE];
+                if (parse_assignment(argv[2], key, value) == 0) {
+                    add_env("persistent", key, value);
+                    save_config(g_config.config_path);
+                    printf("✓ Added environment variable '%s' to persistent group\n", key);
+                    generate_shell_file("bash");
+                    generate_shell_file("zsh");
+                    generate_shell_file("fish");
+                }
+            } else {
+                // Show specific env var
+                show_env_definition(argv[2]);
             }
-            
-            if (add_env("persistent", key, value) == 0) {
+        }
+    }
+    else if (strcmp(command, "function") == 0) {
+        if (argc == 2) {
+            // Show all functions
+            show_all_functions();
+        } else if (argc == 3) {
+            char name[MAX_KEY], body[MAX_FUNCTION_BODY];
+            if (parse_function_assignment(argv[2], name, body) == 0) {
+                if (strlen(body) == 0) {
+                    // Interactive mode or show definition
+                    if (strchr(argv[2], '=') == NULL) {
+                        // Check if function exists
+                        bool exists = false;
+                        for (int i = 0; i < g_config.group_count; i++) {
+                            for (int j = 0; j < g_config.groups[i].function_count; j++) {
+                                if (strcmp(g_config.groups[i].functions[j].name, name) == 0) {
+                                    exists = true;
+                                    break;
+                                }
+                            }
+                            if (exists) break;
+                        }
+                        
+                        if (exists) {
+                            show_function_definition(name);
+                        } else {
+                            // Create interactively
+                            if (add_function_interactive("persistent", name) == 0) {
+                                save_config(g_config.config_path);
+                                printf("✓ Added function '%s' to persistent group\n", name);
+                                generate_shell_file("bash");
+                                generate_shell_file("zsh");
+                                generate_shell_file("fish");
+                            }
+                        }
+                    }
+                } else {
+                    // Add function with body
+                    if (add_function("persistent", name, body) == 0) {
+                        save_config(g_config.config_path);
+                        printf("✓ Added function '%s' to persistent group\n", name);
+                        generate_shell_file("bash");
+                        generate_shell_file("zsh");
+                        generate_shell_file("fish");
+                    }
+                }
+            }
+        } else if (argc == 5 && strcmp(argv[2], "-f") == 0) {
+            // Add function from file
+            if (add_function_from_file("persistent", argv[4], argv[3]) == 0) {
                 save_config(g_config.config_path);
-                printf("✓ Added environment variable '%s' = '%s' to persistent group (always active)\n", key, value);
-                
-                // Generate shell files for common shells
+                printf("✓ Added function '%s' from file '%s' to persistent group\n", argv[4], argv[3]);
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
-                
-                printf("\nTo load changes immediately:\n");
-                printf("  source ~/.config/shtick/load_active.bash   # For bash\n");
-                printf("  source ~/.config/shtick/load_active.zsh    # For zsh\n");
             }
         }
+    }
+    else if (strcmp(command, "add") == 0 && argc >= 5) {
+        const char *type = argv[2];
+        const char *group_name = argv[3];
         
-    } else if (strcmp(argv[1], "add") == 0 && argc >= 5 && strcmp(argv[2], "alias") == 0) {
-        // shtick add alias <group> <key=value>
-        char key[MAX_KEY];
-        char value[MAX_VALUE];
-        
-        if (parse_assignment(argv[4], key, value) != 0) {
-            return 1;
-        }
-        
-        if (add_alias(argv[3], key, value) == 0) {
-            save_config(g_config.config_path);
-            printf("✓ Added alias '%s' = '%s' to group '%s'\n", key, value, argv[3]);
-            
-            // Regenerate if group is active
-            if (is_group_active(argv[3])) {
+        if (strcmp(type, "alias") == 0) {
+            char key[MAX_KEY], value[MAX_VALUE];
+            if (parse_assignment(argv[4], key, value) == 0) {
+                add_alias(group_name, key, value);
+                save_config(g_config.config_path);
+                printf("✓ Added alias '%s' to group '%s'\n", key, group_name);
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
-                printf("\nGroup '%s' is active - changes available in new shell sessions\n", argv[3]);
             }
-        }
-        
-    } else if (strcmp(argv[1], "add") == 0 && argc >= 5 && strcmp(argv[2], "env") == 0) {
-        // shtick add env <group> <key=value>
-        char key[MAX_KEY];
-        char value[MAX_VALUE];
-        
-        if (parse_assignment(argv[4], key, value) != 0) {
-            return 1;
-        }
-        
-        if (add_env(argv[3], key, value) == 0) {
-            save_config(g_config.config_path);
-            printf("✓ Added environment variable '%s' = '%s' to group '%s'\n", key, value, argv[3]);
-            
-            // Regenerate if group is active
-            if (is_group_active(argv[3])) {
+        } else if (strcmp(type, "env") == 0) {
+            char key[MAX_KEY], value[MAX_VALUE];
+            if (parse_assignment(argv[4], key, value) == 0) {
+                add_env(group_name, key, value);
+                save_config(g_config.config_path);
+                printf("✓ Added environment variable '%s' to group '%s'\n", key, group_name);
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
-                printf("\nGroup '%s' is active - changes available in new shell sessions\n", argv[3]);
+            }
+        } else if (strcmp(type, "function") == 0) {
+            char name[MAX_KEY], body[MAX_FUNCTION_BODY];
+            if (parse_function_assignment(argv[4], name, body) == 0) {
+                if (strlen(body) == 0) {
+                    // Interactive mode
+                    if (add_function_interactive(group_name, name) == 0) {
+                        save_config(g_config.config_path);
+                        printf("✓ Added function '%s' to group '%s'\n", name, group_name);
+                        generate_shell_file("bash");
+                        generate_shell_file("zsh");
+                        generate_shell_file("fish");
+                    }
+                } else {
+                    // Add function with body
+                    if (add_function(group_name, name, body) == 0) {
+                        save_config(g_config.config_path);
+                        printf("✓ Added function '%s' to group '%s'\n", name, group_name);
+                        generate_shell_file("bash");
+                        generate_shell_file("zsh");
+                        generate_shell_file("fish");
+                    }
+                }
             }
         }
-        
-    } else if (strcmp(argv[1], "remove") == 0) {
+    }
+    else if (strcmp(command, "remove") == 0) {
         if (argc == 3) {
-            // shtick remove <search> - search all groups for both aliases and env vars
-            int alias_result = remove_alias_global(argv[2]);
-            int env_result = remove_env_global(argv[2]);
+            // Remove from any group
+            int removed = 0;
+            removed += remove_alias_global(argv[2]);
+            removed += remove_env_global(argv[2]);
+            removed += remove_function_global(argv[2]);
             
-            if (alias_result > 0 || env_result > 0) {
+            if (removed > 0) {
                 save_config(g_config.config_path);
-                
-                // Regenerate shell files
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
-                printf("\nChanges will be available in new shell sessions\n");
             }
-        } else if (argc >= 5 && strcmp(argv[2], "alias") == 0) {
-            // shtick remove alias <group> <search> - search specific group
-            int result = remove_alias(argv[3], argv[4]);
-            if (result > 0) {
+        } else if (argc == 5) {
+            // Remove from specific group
+            const char *type = argv[2];
+            const char *group_name = argv[3];
+            const char *search_term = argv[4];
+            int removed = 0;
+            
+            if (strcmp(type, "alias") == 0) {
+                removed = remove_alias(group_name, search_term);
+            } else if (strcmp(type, "env") == 0) {
+                removed = remove_env(group_name, search_term);
+            } else if (strcmp(type, "function") == 0) {
+                removed = remove_function(group_name, search_term);
+            }
+            
+            if (removed > 0) {
                 save_config(g_config.config_path);
-                
-                // Regenerate if group is active
-                if (is_group_active(argv[3])) {
-                    generate_shell_file("bash");
-                    generate_shell_file("zsh");
-                    generate_shell_file("fish");
-                    printf("\nGroup '%s' is active - changes available in new shell sessions\n", argv[3]);
-                }
+                generate_shell_file("bash");
+                generate_shell_file("zsh");
+                generate_shell_file("fish");
             }
-        } else if (argc >= 5 && strcmp(argv[2], "env") == 0) {
-            // shtick remove env <group> <search> - search specific group
-            int result = remove_env(argv[3], argv[4]);
-            if (result > 0) {
-                save_config(g_config.config_path);
-                
-                // Regenerate if group is active
-                if (is_group_active(argv[3])) {
-                    generate_shell_file("bash");
-                    generate_shell_file("zsh");
-                    generate_shell_file("fish");
-                    printf("\nGroup '%s' is active - changes available in new shell sessions\n", argv[3]);
-                }
-            }
-        } else {
-            fprintf(stderr, "Error: Invalid remove syntax\n");
-            fprintf(stderr, "Usage: shtick remove <search>  OR  shtick remove alias|env <group> <search>\n");
-            return 1;
         }
-        
-    } else if (strcmp(argv[1], "activate") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: Missing group name\n");
-            return 1;
-        }
-        
+    }
+    else if (strcmp(command, "activate") == 0 && argc == 3) {
         if (activate_group(argv[2]) == 0) {
-            // Regenerate loader files
             generate_shell_file("bash");
             generate_shell_file("zsh");
             generate_shell_file("fish");
-            
-            printf("\nTo load changes immediately:\n");
-            printf("  source ~/.config/shtick/load_active.bash   # For bash\n");
-            printf("  source ~/.config/shtick/load_active.zsh    # For zsh\n");
         }
-        
-    } else if (strcmp(argv[1], "deactivate") == 0) {
-        if (argc < 3) {
-            fprintf(stderr, "Error: Missing group name\n");
-            return 1;
-        }
-        
+    }
+    else if (strcmp(command, "deactivate") == 0 && argc == 3) {
         if (deactivate_group(argv[2]) == 0) {
-            // Regenerate loader files
             generate_shell_file("bash");
             generate_shell_file("zsh");
             generate_shell_file("fish");
-            
-            printf("\nTo load changes immediately:\n");
-            printf("  source ~/.config/shtick/load_active.bash   # For bash\n");
-            printf("  source ~/.config/shtick/load_active.zsh    # For zsh\n");
         }
-        
-    } else if (strcmp(argv[1], "status") == 0) {
+    }
+    else if (strcmp(command, "status") == 0) {
         show_status();
-        
-    } else if (strcmp(argv[1], "list") == 0) {
+    }
+    else if (strcmp(command, "list") == 0) {
         list_aliases();
         list_envs();
-        
-    } else if (strcmp(argv[1], "generate") == 0) {
-        const char *shells[] = {"bash", "zsh", "fish"};
-        
-        printf("Generating shell files...\n");
-        for (int i = 0; i < 3; i++) {
-            generate_shell_file(shells[i]);
-        }
-        printf("✓ Done! Files generated in ~/.config/shtick/\n");
-        
-    } else {
-        fprintf(stderr, "Error: Unknown command '%s'\n", argv[1]);
+        list_functions();
+    }
+    else if (strcmp(command, "generate") == 0) {
+        printf("✓ Generating shell files...\n");
+        generate_shell_file("bash");
+        generate_shell_file("zsh");
+        generate_shell_file("fish");
+        printf("✓ Done! Source ~/.config/shtick/load_active.<shell> in your shell config\n");
+    }
+    else {
+        fprintf(stderr, "Unknown command: %s\n", command);
         show_usage();
         return 1;
     }
