@@ -85,19 +85,37 @@ int main(int argc, char *argv[]) {
             }
         }
         
-    } else if (strcmp(argv[1], "remove") == 0 && argc >= 5 && strcmp(argv[2], "alias") == 0) {
-        // shtick remove alias <group> <search>
-        int result = remove_alias(argv[3], argv[4]);
-        if (result > 0) {
-            save_config(g_config.config_path);
-            
-            // Regenerate if group is active
-            if (is_group_active(argv[3])) {
+    } else if (strcmp(argv[1], "remove") == 0) {
+        if (argc == 3) {
+            // shtick remove <search> - search all groups
+            int result = remove_alias_global(argv[2]);
+            if (result > 0) {
+                save_config(g_config.config_path);
+                
+                // Regenerate shell files
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
-                printf("\nGroup '%s' is active - changes available in new shell sessions\n", argv[3]);
+                printf("\nChanges will be available in new shell sessions\n");
             }
+        } else if (argc >= 5 && strcmp(argv[2], "alias") == 0) {
+            // shtick remove alias <group> <search> - search specific group
+            int result = remove_alias(argv[3], argv[4]);
+            if (result > 0) {
+                save_config(g_config.config_path);
+                
+                // Regenerate if group is active
+                if (is_group_active(argv[3])) {
+                    generate_shell_file("bash");
+                    generate_shell_file("zsh");
+                    generate_shell_file("fish");
+                    printf("\nGroup '%s' is active - changes available in new shell sessions\n", argv[3]);
+                }
+            }
+        } else {
+            fprintf(stderr, "Error: Invalid remove syntax\n");
+            fprintf(stderr, "Usage: shtick remove <search>  OR  shtick remove alias <group> <search>\n");
+            return 1;
         }
         
     } else if (strcmp(argv[1], "activate") == 0) {

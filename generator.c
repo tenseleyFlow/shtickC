@@ -47,11 +47,14 @@ int generate_shell_file(const char *shell_type) {
         // Generate aliases based on shell type
         for (int j = 0; j < group->alias_count; j++) {
             Item *alias = &group->aliases[j];
+            char escaped_value[MAX_VALUE * 2];  // Extra space for escaping
             
             if (strcmp(shell_type, "bash") == 0 || strcmp(shell_type, "zsh") == 0) {
-                fprintf(fp, "alias %s='%s'\n", alias->key, alias->value);
+                escape_bash_value(alias->value, escaped_value, sizeof(escaped_value));
+                fprintf(fp, "alias %s=%s\n", alias->key, escaped_value);
             } else if (strcmp(shell_type, "fish") == 0) {
-                fprintf(fp, "alias %s '%s'\n", alias->key, alias->value);
+                escape_fish_value(alias->value, escaped_value, sizeof(escaped_value));
+                fprintf(fp, "alias %s %s\n", alias->key, escaped_value);
             }
         }
         

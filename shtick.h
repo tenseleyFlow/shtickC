@@ -57,6 +57,7 @@ int deactivate_group(const char *group_name);
 // aliases.c - Alias management
 int add_alias(const char *group_name, const char *key, const char *value);
 int remove_alias(const char *group_name, const char *search_term);
+int remove_alias_global(const char *search_term);
 void show_alias_definition(const char *alias_name);
 void show_all_aliases(void);
 void list_aliases(void);
@@ -72,5 +73,12 @@ void show_usage(void);
 void ensure_directory(const char *path);
 int parse_assignment(const char *assignment, char *key, char *value);
 bool parse_toml_line(const char *line, char *section, char *key, char *value);
+
+// escape.c - Shell escaping utilities
+char* escape_bash_value(const char *value, char *buffer, size_t size);
+char* escape_fish_value(const char *value, char *buffer, size_t size);
+char* escape_toml_value(const char *value, char *buffer, size_t size);
+bool validate_alias_value(const char *value);
+bool validate_key_format(const char *key);
 
 #endif // SHTICK_H
