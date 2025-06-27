@@ -5,6 +5,26 @@
 // Global configuration
 Config g_config;
 
+// Simple init command implementation
+void cmd_init(const char *shell) {
+    printf("# Shtick Shell Setup\n\n");
+    
+    if (!shell) {
+        printf("Add to your shell config:\n\n");
+        printf("# Bash (~/.bashrc):\n");
+        printf("source ~/.config/shtick/load_active.bash\n\n");
+        printf("# Zsh (~/.zshrc):\n");
+        printf("source ~/.config/shtick/load_active.zsh\n\n");
+        printf("# Fish (~/.config/fish/config.fish):\n");
+        printf("source ~/.config/shtick/load_active.fish\n\n");
+    } else {
+        printf("# Add to your %s config:\n", shell);
+        printf("source ~/.config/shtick/load_active.%s\n\n", shell);
+    }
+    
+    printf("Then run: shtick generate\n");
+}
+
 int main(int argc, char *argv[]) {
     // Initialize config path
     get_default_config_path(g_config.config_path, sizeof(g_config.config_path));
@@ -12,6 +32,13 @@ int main(int argc, char *argv[]) {
     // Load configuration
     load_config(g_config.config_path);
     load_active_groups();
+    
+    // Add the init command handling
+    if (argc >= 2 && strcmp(argv[1], "init") == 0) {
+        const char *shell = argc >= 3 ? argv[2] : NULL;
+        cmd_init(shell);
+        return 0;
+    }
     
     // Ensure we have the config directory
     char config_dir[MAX_PATH];

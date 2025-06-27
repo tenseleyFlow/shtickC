@@ -143,8 +143,13 @@ int load_config(const char *config_path) {
             char *end = strchr(line, ']');
             if (end) {
                 size_t len = end - line - 1;
-                strncpy(section, line + 1, len);
-                section[len] = '\0';
+                // SECURITY FIX: Check bounds before copying
+                if (len < sizeof(section) - 1) {
+                    strncpy(section, line + 1, len);
+                    section[len] = '\0';
+                } else {
+                    continue;  // Skip sections with names too long
+                }
                 
                 // Check if this is a plain group section (no dot)
                 if (!strchr(section, '.')) {
@@ -249,8 +254,13 @@ int load_config(const char *config_path) {
             char *dot = strchr(section, '.');
             if (dot) {
                 size_t len = dot - section;
-                strncpy(group_name, section, len);
-                group_name[len] = '\0';
+                // SECURITY FIX: Check bounds before copying
+                if (len < sizeof(group_name) - 1) {
+                    strncpy(group_name, section, len);
+                    group_name[len] = '\0';
+                } else {
+                    continue;  // Group name too long
+                }
                 
                 // Find or create group
                 current_group = NULL;
@@ -282,8 +292,13 @@ int load_config(const char *config_path) {
             char *dot = strchr(section, '.');
             if (dot) {
                 size_t len = dot - section;
-                strncpy(group_name, section, len);
-                group_name[len] = '\0';
+                // SECURITY FIX: Check bounds before copying
+                if (len < sizeof(group_name) - 1) {
+                    strncpy(group_name, section, len);
+                    group_name[len] = '\0';
+                } else {
+                    continue;  // Group name too long
+                }
                 
                 // Find or create group
                 current_group = NULL;
@@ -315,8 +330,13 @@ int load_config(const char *config_path) {
             char *dot = strchr(section, '.');
             if (dot) {
                 size_t len = dot - section;
-                strncpy(group_name, section, len);
-                group_name[len] = '\0';
+                // SECURITY FIX: Check bounds before copying
+                if (len < sizeof(group_name) - 1) {
+                    strncpy(group_name, section, len);
+                    group_name[len] = '\0';
+                } else {
+                    continue;  // Group name too long
+                }
                 
                 // Find or create group
                 current_group = NULL;
