@@ -1,4 +1,4 @@
-// generator.c - Extended shell file generation for 16+ shells
+// generator.c - Extended shell file generation for 16+ shells (FIXED)
 #include "shtick.h"
 #include <sys/stat.h>
 
@@ -541,6 +541,11 @@ int generate_shell_file(const char *shell_type) {
         Group *group = &g_config.groups[i];
         
         if (group->alias_count == 0 && group->env_var_count == 0 && group->function_count == 0) continue;
+        
+        // FIXED: Only generate for active groups (persistent is always active)
+        if (strcmp(group->name, "persistent") != 0 && !is_group_active(group->name)) {
+            continue;
+        }
         
         // Create output directory
         snprintf(output_dir, sizeof(output_dir), "%s/.config/shtick/%s", home, group->name);

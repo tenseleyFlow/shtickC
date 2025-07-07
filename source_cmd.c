@@ -1,4 +1,4 @@
-// source_cmd.c - Source command implementation
+// source_cmd.c - Source command implementation (FIXED)
 #include "shtick.h"
 #include <unistd.h>
 
@@ -59,7 +59,7 @@ int cmd_source(const char *shell_override) {
     const char *shell = shell_override ? shell_override : detect_current_shell();
     
     if (!shell || strlen(shell) == 0) {
-        fprintf(stderr, "Error: Could not detect shell. Use 'shtick source --shell <shell>' to specify.\n");
+        fprintf(stderr, "Error: Could not detect shell. Use 'shtick source <shell>' to specify.\n");
         return 1;
     }
     

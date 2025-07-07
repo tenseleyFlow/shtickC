@@ -1,4 +1,4 @@
-// main.c - Main entry point for shtick
+// main.c - Main entry point for shtick (FIXED)
 #include "shtick.h"
 #include <unistd.h>
 
@@ -478,6 +478,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    // FIXED: Handle source command properly
     else if (strcmp(command, "source") == 0) {
         const char *shell = argc >= 3 ? argv[2] : NULL;
         return cmd_source(shell);
