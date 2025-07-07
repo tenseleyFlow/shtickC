@@ -5,8 +5,8 @@ CC = gcc
 CFLAGS = -Wall -Wextra -O2 -std=c99 -D_GNU_SOURCE
 TARGET = shtick
 
-# Source files - Including completions.c if you add it
-SRCS = main.c config.c groups.c aliases.c env.c functions.c generator.c display.c utils.c escape.c completions.c
+# Source files - Including all required files
+SRCS = main.c config.c groups.c aliases.c env.c functions.c generator.c display.c utils.c escape.c completions.c source_cmd.c settings.c backup.c batch.c
 OBJS = $(SRCS:.c=.o)
 HEADERS = shtick.h
 

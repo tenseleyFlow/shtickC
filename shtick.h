@@ -115,6 +115,14 @@ void trim_whitespace(char *str);
 bool is_valid_identifier(const char *str);
 void expand_tilde(const char *path, char *expanded, size_t size);
 
+// New utility functions for source command
+const char* detect_current_shell(void);
+void clear_shell_cache(void);
+int cmd_source(const char *shell_override);
+void show_source_instructions(void);
+bool should_offer_auto_source(const char *group_name);
+void offer_auto_source(void);
+
 // escape.c - Shell escaping utilities
 char* escape_bash_value(const char *value, char *buffer, size_t size);
 char* escape_fish_value(const char *value, char *buffer, size_t size);
@@ -127,5 +135,31 @@ bool is_critical_env_var(const char *key);
 
 // completions.c - Shell completion generation
 int generate_completions(const char *shell);
+
+// New functions for extended features
+
+// Settings management
+void load_settings(void);
+int save_settings(void);
+int settings_init(void);
+void settings_show(void);
+int settings_set(const char *key, const char *value);
+bool should_auto_source_prompt(void);
+bool should_check_conflicts(void);
+bool should_backup_on_save(void);
+int get_max_auto_backups(void);
+bool should_use_parallel_generation(void);
+const char* get_configured_shells(void);
+
+// Backup and restore
+int backup_create(const char *name);
+int backup_list(void);
+int backup_restore(const char *name);
+void cleanup_old_backups(int max_backups);
+
+// Batch operations
+int batch_add(const char *filename);
+int batch_remove(const char *filename);
+void batch_help(void);
 
 #endif // SHTICK_H

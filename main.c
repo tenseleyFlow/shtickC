@@ -62,6 +62,9 @@ int main(int argc, char *argv[]) {
     // Initialize config path
     get_default_config_path(g_config.config_path, sizeof(g_config.config_path));
     
+    // Load settings first
+    load_settings();
+    
     // Load configuration
     load_config(g_config.config_path);
     load_active_groups();
@@ -106,6 +109,11 @@ int main(int argc, char *argv[]) {
                     generate_shell_file("bash");
                     generate_shell_file("zsh");
                     generate_shell_file("fish");
+                    
+                    // Offer auto-source
+                    if (should_offer_auto_source("persistent")) {
+                        offer_auto_source();
+                    }
                 }
             } else {
                 // Show specific alias
@@ -128,6 +136,11 @@ int main(int argc, char *argv[]) {
                     generate_shell_file("bash");
                     generate_shell_file("zsh");
                     generate_shell_file("fish");
+                    
+                    // Offer auto-source
+                    if (should_offer_auto_source("persistent")) {
+                        offer_auto_source();
+                    }
                 }
             } else {
                 // Show specific env var
@@ -167,6 +180,11 @@ int main(int argc, char *argv[]) {
                                 generate_shell_file("bash");
                                 generate_shell_file("zsh");
                                 generate_shell_file("fish");
+                                
+                                // Offer auto-source
+                                if (should_offer_auto_source("persistent")) {
+                                    offer_auto_source();
+                                }
                             }
                         }
                     }
@@ -178,6 +196,11 @@ int main(int argc, char *argv[]) {
                         generate_shell_file("bash");
                         generate_shell_file("zsh");
                         generate_shell_file("fish");
+                        
+                        // Offer auto-source
+                        if (should_offer_auto_source("persistent")) {
+                            offer_auto_source();
+                        }
                     }
                 }
             }
@@ -189,6 +212,11 @@ int main(int argc, char *argv[]) {
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
+                
+                // Offer auto-source
+                if (should_offer_auto_source("persistent")) {
+                    offer_auto_source();
+                }
             }
         }
     }
@@ -199,22 +227,58 @@ int main(int argc, char *argv[]) {
         if (strcmp(type, "alias") == 0) {
             char key[MAX_KEY], value[MAX_VALUE];
             if (parse_assignment(argv[4], key, value) == 0) {
+                
+                // Check conflicts if enabled
+                if (should_check_conflicts()) {
+                    for (int i = 0; i < g_config.group_count; i++) {
+                        Group *g = &g_config.groups[i];
+                        for (int j = 0; j < g->alias_count; j++) {
+                            if (strcmp(g->aliases[j].key, key) == 0) {
+                                printf("⚠️  Warning: Alias '%s' already exists in group '%s'\n", key, g->name);
+                            }
+                        }
+                    }
+                }
+                
                 add_alias(group_name, key, value);
                 save_config(g_config.config_path);
                 printf("✓ Added alias '%s' to group '%s'\n", key, group_name);
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
+                
+                // Offer auto-source
+                if (should_offer_auto_source(group_name)) {
+                    offer_auto_source();
+                }
             }
         } else if (strcmp(type, "env") == 0) {
             char key[MAX_KEY], value[MAX_VALUE];
             if (parse_assignment(argv[4], key, value) == 0) {
+                
+                // Check conflicts if enabled
+                if (should_check_conflicts()) {
+                    for (int i = 0; i < g_config.group_count; i++) {
+                        Group *g = &g_config.groups[i];
+                        for (int j = 0; j < g->env_var_count; j++) {
+                            if (strcmp(g->env_vars[j].key, key) == 0) {
+                                printf("⚠️  Warning: Environment variable '%s' already exists in group '%s'\n", key, g->name);
+                            }
+                        }
+                    }
+                }
+                
                 add_env(group_name, key, value);
                 save_config(g_config.config_path);
                 printf("✓ Added environment variable '%s' to group '%s'\n", key, group_name);
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
+                
+                // Offer auto-source
+                if (should_offer_auto_source(group_name)) {
+                    offer_auto_source();
+                }
             }
         } else if (strcmp(type, "function") == 0) {
             char name[MAX_KEY], body[MAX_FUNCTION_BODY];
@@ -227,15 +291,38 @@ int main(int argc, char *argv[]) {
                         generate_shell_file("bash");
                         generate_shell_file("zsh");
                         generate_shell_file("fish");
+                        
+                        // Offer auto-source
+                        if (should_offer_auto_source(group_name)) {
+                            offer_auto_source();
+                        }
                     }
                 } else {
                     // Add function with body
+                    
+                    // Check conflicts if enabled
+                    if (should_check_conflicts()) {
+                        for (int i = 0; i < g_config.group_count; i++) {
+                            Group *g = &g_config.groups[i];
+                            for (int j = 0; j < g->function_count; j++) {
+                                if (strcmp(g->functions[j].name, name) == 0) {
+                                    printf("⚠️  Warning: Function '%s' already exists in group '%s'\n", name, g->name);
+                                }
+                            }
+                        }
+                    }
+                    
                     if (add_function(group_name, name, body) == 0) {
                         save_config(g_config.config_path);
                         printf("✓ Added function '%s' to group '%s'\n", name, group_name);
                         generate_shell_file("bash");
                         generate_shell_file("zsh");
                         generate_shell_file("fish");
+                        
+                        // Offer auto-source
+                        if (should_offer_auto_source(group_name)) {
+                            offer_auto_source();
+                        }
                     }
                 }
             }
@@ -254,6 +341,9 @@ int main(int argc, char *argv[]) {
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
+                
+                // Offer auto-source
+                offer_auto_source();
             }
         } else if (argc == 5) {
             // Remove from specific group
@@ -275,6 +365,11 @@ int main(int argc, char *argv[]) {
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
+                
+                // Offer auto-source
+                if (should_offer_auto_source(group_name)) {
+                    offer_auto_source();
+                }
             }
         }
     }
@@ -353,11 +448,20 @@ int main(int argc, char *argv[]) {
                 }
             }
         } else {
-            // Generate for common shells only
-            printf("✓ Generating shell files for common shells...\n");
-            generate_shell_file("bash");
-            generate_shell_file("zsh");
-            generate_shell_file("fish");
+            // Generate for common shells only (or configured shells)
+            const char *configured_shells = get_configured_shells();
+            if (configured_shells) {
+                printf("✓ Generating shell files for configured shells: %s\n", configured_shells);
+                // TODO: Parse comma-separated list and generate for each
+                generate_shell_file("bash");
+                generate_shell_file("zsh");
+                generate_shell_file("fish");
+            } else {
+                printf("✓ Generating shell files for common shells...\n");
+                generate_shell_file("bash");
+                generate_shell_file("zsh");
+                generate_shell_file("fish");
+            }
             printf("✓ Done! Source ~/.config/shtick/load_active.<shell> in your shell config\n");
             printf("Use 'shtick generate all' to generate for all 16 supported shells\n");
         }
@@ -372,6 +476,83 @@ int main(int argc, char *argv[]) {
             if (strcmp(shell, "all") == 0) {
                 printf("✓ Generated completions for common shells\n");
             }
+        }
+    }
+    else if (strcmp(command, "source") == 0) {
+        const char *shell = argc >= 3 ? argv[2] : NULL;
+        return cmd_source(shell);
+    }
+    else if (strcmp(command, "batch") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Usage: shtick batch <add|remove|help> [file]\n");
+            return 1;
+        }
+        
+        const char *subcommand = argv[2];
+        if (strcmp(subcommand, "add") == 0) {
+            if (argc < 4) {
+                fprintf(stderr, "Usage: shtick batch add <file>\n");
+                return 1;
+            }
+            return batch_add(argv[3]);
+        } else if (strcmp(subcommand, "remove") == 0) {
+            if (argc < 4) {
+                fprintf(stderr, "Usage: shtick batch remove <file>\n");
+                return 1;
+            }
+            return batch_remove(argv[3]);
+        } else if (strcmp(subcommand, "help") == 0) {
+            batch_help();
+            return 0;
+        } else {
+            fprintf(stderr, "Unknown batch subcommand: %s\n", subcommand);
+            return 1;
+        }
+    }
+    else if (strcmp(command, "backup") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Usage: shtick backup <create|list|restore> [args...]\n");
+            return 1;
+        }
+        
+        const char *subcommand = argv[2];
+        if (strcmp(subcommand, "create") == 0) {
+            const char *name = argc >= 4 ? argv[3] : NULL;
+            return backup_create(name);
+        } else if (strcmp(subcommand, "list") == 0) {
+            return backup_list();
+        } else if (strcmp(subcommand, "restore") == 0) {
+            if (argc < 4) {
+                fprintf(stderr, "Usage: shtick backup restore <name>\n");
+                return 1;
+            }
+            return backup_restore(argv[3]);
+        } else {
+            fprintf(stderr, "Unknown backup subcommand: %s\n", subcommand);
+            return 1;
+        }
+    }
+    else if (strcmp(command, "settings") == 0) {
+        if (argc < 3) {
+            fprintf(stderr, "Usage: shtick settings <init|show|set> [args...]\n");
+            return 1;
+        }
+        
+        const char *subcommand = argv[2];
+        if (strcmp(subcommand, "init") == 0) {
+            return settings_init();
+        } else if (strcmp(subcommand, "show") == 0) {
+            settings_show();
+            return 0;
+        } else if (strcmp(subcommand, "set") == 0) {
+            if (argc < 5) {
+                fprintf(stderr, "Usage: shtick settings set <key> <value>\n");
+                return 1;
+            }
+            return settings_set(argv[3], argv[4]);
+        } else {
+            fprintf(stderr, "Unknown settings subcommand: %s\n", subcommand);
+            return 1;
         }
     }
     else {
