@@ -1,6 +1,7 @@
-// batch.c - Batch operations for shtick
+// batch.c - Batch operations for shtick (FIXED)
 #include "shtick.h"
 #include <ctype.h>
+#include <unistd.h>
 
 // Batch operation result tracking
 typedef struct {
@@ -29,7 +30,7 @@ static void trim_str(char *str) {
     }
 }
 
-// Parse CSV line (simple parser, handles quoted values)
+// FIXED: Parse CSV line (simple parser, handles quoted values)
 static int parse_csv_line(char *line, char *type, char *group, char *key, char *value) {
     // Expected format: type,group,key,value
     // Handle quoted values if they contain commas
@@ -39,6 +40,11 @@ static int parse_csv_line(char *line, char *type, char *group, char *key, char *
     char *p = line;
     char *field_start = p;
     bool in_quotes = false;
+    
+    // Initialize all fields to empty
+    for (int i = 0; i < 4; i++) {
+        fields[i][0] = '\0';
+    }
     
     while (*p && field_idx < 4) {
         if (*p == '"') {
@@ -52,14 +58,17 @@ static int parse_csv_line(char *line, char *type, char *group, char *key, char *
             size_t len = p - field_start;
             if (len > 0) {
                 // Remove quotes if present
-                if (*field_start == '"' && *(p-1) == '"') {
+                if (*field_start == '"' && len >= 2 && *(p-1) == '"') {
                     field_start++;
                     len -= 2;
                 }
-                strncpy(fields[field_idx], field_start, len);
-                fields[field_idx][len] = '\0';
-            } else {
-                fields[field_idx][0] = '\0';
+                if (len < MAX_KEY && field_idx < 3) {  // Bounds check for type, group, key
+                    strncpy(fields[field_idx], field_start, len);
+                    fields[field_idx][len] = '\0';
+                } else if (len < MAX_VALUE && field_idx == 3) {  // Bounds check for value
+                    strncpy(fields[field_idx], field_start, len);
+                    fields[field_idx][len] = '\0';
+                }
             }
             
             field_idx++;
@@ -73,15 +82,17 @@ static int parse_csv_line(char *line, char *type, char *group, char *key, char *
     
     // Handle last field
     if (field_idx < 4 && *field_start) {
-        size_t len = strlen(field_start);
+        size_t len = p - field_start;
         // Remove quotes if present
-        if (*field_start == '"' && field_start[len-1] == '"') {
+        if (*field_start == '"' && len >= 2 && *(p-1) == '"') {
             field_start++;
             len -= 2;
         }
-        strncpy(fields[field_idx], field_start, len);
-        fields[field_idx][len] = '\0';
-        field_idx++;
+        if (len < MAX_VALUE) {  // Bounds check
+            strncpy(fields[field_idx], field_start, len);
+            fields[field_idx][len] = '\0';
+            field_idx++;
+        }
     }
     
     // Trim all fields
@@ -113,7 +124,10 @@ int batch_add(const char *filename) {
     if (strcmp(filename, "-") == 0) {
         fp = stdin;
         use_stdin = true;
-        printf("Reading from stdin (type Ctrl+D when done)...\n");
+        // FIXED: Only print prompt if we're actually interactive
+        if (isatty(STDIN_FILENO)) {
+            printf("Reading from stdin (type Ctrl+D when done)...\n");
+        }
     } else {
         fp = fopen(filename, "r");
         if (!fp) {
@@ -217,7 +231,10 @@ int batch_remove(const char *filename) {
     if (strcmp(filename, "-") == 0) {
         fp = stdin;
         use_stdin = true;
-        printf("Reading from stdin (type Ctrl+D when done)...\n");
+        // FIXED: Only print prompt if we're actually interactive
+        if (isatty(STDIN_FILENO)) {
+            printf("Reading from stdin (type Ctrl+D when done)...\n");
+        }
     } else {
         fp = fopen(filename, "r");
         if (!fp) {

@@ -1,4 +1,4 @@
-// groups.c - Group management
+// groups.c - Group management (FIXED)
 #include "shtick.h"
 #include <ctype.h>
 
@@ -47,6 +47,12 @@ int create_group(const char *group_name) {
     // Check if it's a reserved name
     if (strcmp(group_name, "persistent") == 0) {
         fprintf(stderr, "Error: 'persistent' is a reserved group name\n");
+        return -1;
+    }
+    
+    // FIXED: Check if name starts with a digit
+    if (isdigit(group_name[0])) {
+        fprintf(stderr, "Error: Group name cannot start with a number\n");
         return -1;
     }
     
@@ -157,6 +163,12 @@ int rename_group(const char *old_name, const char *new_name) {
     // Cannot rename persistent
     if (strcmp(old_name, "persistent") == 0 || strcmp(new_name, "persistent") == 0) {
         fprintf(stderr, "Error: Cannot rename to or from 'persistent' group\n");
+        return -1;
+    }
+    
+    // FIXED: Validate new name doesn't start with digit
+    if (isdigit(new_name[0])) {
+        fprintf(stderr, "Error: Group name cannot start with a number\n");
         return -1;
     }
     

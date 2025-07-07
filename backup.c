@@ -1,11 +1,9 @@
-// backup.c - Backup and restore functionality
+// backup.c - Backup and restore functionality (FIXED)
 #include "shtick.h"
 #include <time.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-#define MAX_BACKUPS 10  // Default, can be overridden by settings
 
 // Get backup directory path
 void get_backup_dir(char *path, size_t size) {
@@ -154,9 +152,10 @@ int backup_create(const char *name) {
     
     printf("✓ Created backup: %s\n", backup_path);
     
-    // Clean up old automatic backups if this was automatic
+    // FIXED: Clean up old automatic backups if this was automatic
     if (!name || strlen(name) == 0) {
-        cleanup_old_backups(MAX_BACKUPS);
+        int max_backups = get_max_auto_backups();
+        cleanup_old_backups(max_backups);
     }
     
     return 0;
