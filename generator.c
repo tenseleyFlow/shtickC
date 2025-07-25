@@ -547,12 +547,20 @@ int generate_shell_file(const char *shell_type) {
             continue;
         }
         
-        // Create output directory
-        snprintf(output_dir, sizeof(output_dir), "%s/.config/shtick/%s", home, group->name);
+        // Create output directory with bounds checking
+        int ret = snprintf(output_dir, sizeof(output_dir), "%s/.config/shtick/%s", home, group->name);
+        if (ret < 0 || ret >= (int)sizeof(output_dir)) {
+            fprintf(stderr, "Error: Path too long for group '%s'\n", group->name);
+            continue;
+        }
         ensure_directory(output_dir);
         
-        // Create output file
-        snprintf(output_path, sizeof(output_path), "%s/all.%s", output_dir, info->extension);
+        // Create output file with bounds checking
+        ret = snprintf(output_path, sizeof(output_path), "%s/all.%s", output_dir, info->extension);
+        if (ret < 0 || ret >= (int)sizeof(output_path)) {
+            fprintf(stderr, "Error: Path too long for shell file '%s'\n", info->name);
+            continue;
+        }
         
         FILE *fp = fopen(output_path, "w");
         if (!fp) {
@@ -578,8 +586,12 @@ int generate_shell_file(const char *shell_type) {
         fclose(fp);
     }
     
-    // Generate loader file
-    snprintf(output_path, sizeof(output_path), "%s/.config/shtick/load_active.%s", home, info->extension);
+    // Generate loader file with bounds checking
+    int ret = snprintf(output_path, sizeof(output_path), "%s/.config/shtick/load_active.%s", home, info->extension);
+    if (ret < 0 || ret >= (int)sizeof(output_path)) {
+        fprintf(stderr, "Error: Path too long for loader file\n");
+        return -1;
+    }
     
     FILE *fp = fopen(output_path, "w");
     if (!fp) {
