@@ -62,12 +62,19 @@ static int parse_csv_line(char *line, char *type, char *group, char *key, char *
                     field_start++;
                     len -= 2;
                 }
-                if (len < MAX_KEY && field_idx < 3) {  // Bounds check for type, group, key
-                    strncpy(fields[field_idx], field_start, len);
+                if (field_idx < 3 && len < MAX_KEY) {  // type, group, key
+                    memcpy(fields[field_idx], field_start, len);
                     fields[field_idx][len] = '\0';
-                } else if (len < MAX_VALUE && field_idx == 3) {  // Bounds check for value
-                    strncpy(fields[field_idx], field_start, len);
+                } else if (field_idx == 3 && len < MAX_VALUE) {  // value
+                    memcpy(fields[field_idx], field_start, len);
                     fields[field_idx][len] = '\0';
+                } else {
+                    // Field too long, truncate safely
+                    size_t max_len = (field_idx < 3) ? MAX_KEY - 1 : MAX_VALUE - 1;
+                    size_t copy_len = (len < max_len) ? len : max_len;
+                    memcpy(fields[field_idx], field_start, copy_len);
+                    fields[field_idx][copy_len] = '\0';
+                    fprintf(stderr, "Warning: Field %d truncated\n", field_idx + 1);
                 }
             }
             

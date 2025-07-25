@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
     
     // Ensure we have the config directory
     char config_dir[MAX_PATH];
-    strncpy(config_dir, g_config.config_path, sizeof(config_dir) - 1);
+    snprintf(config_dir, sizeof(config_dir), "%s", g_config.config_path);
     char *last_slash = strrchr(config_dir, '/');
     if (last_slash) {
         *last_slash = '\0';

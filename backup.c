@@ -1,9 +1,18 @@
-// backup.c - Backup and restore functionality (FIXED)
+// backup.c - Backup and restore functionality
 #include "shtick.h"
 #include <time.h>
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+// Safe path concatenation with bounds checking
+static int safe_path_join(char *dest, size_t dest_size, const char *dir, const char *file) {
+    int ret = snprintf(dest, dest_size, "%s/%s", dir, file);
+    if (ret < 0 || ret >= (int)dest_size) {
+        return -1;  // Path too long
+    }
+    return 0;
+}
 
 // Get backup directory path
 void get_backup_dir(char *path, size_t size) {
@@ -94,7 +103,9 @@ void cleanup_old_backups(int max_backups) {
                        &year, &month, &day, &hour, &min, &sec) == 6) {
                 
                 char full_path[MAX_PATH];
-                snprintf(full_path, sizeof(full_path), "%s/%s", backup_dir, entry->d_name);
+                if (safe_path_join(full_path, sizeof(full_path), backup_dir, entry->d_name) != 0) {
+                    continue;  // Skip if path too long
+                }
                 
                 if (stat(full_path, &st) == 0) {
                     strcpy(auto_backups[auto_count].name, entry->d_name);
@@ -120,7 +131,9 @@ void cleanup_old_backups(int max_backups) {
     // Delete old backups beyond max_backups
     for (int i = max_backups; i < auto_count; i++) {
         char full_path[MAX_PATH];
-        snprintf(full_path, sizeof(full_path), "%s/%s", backup_dir, auto_backups[i].name);
+        if (safe_path_join(full_path, sizeof(full_path), backup_dir, auto_backups[i].name) != 0) {
+            continue;  // Skip if path too long
+        }
         unlink(full_path);
     }
 }
@@ -142,7 +155,10 @@ int backup_create(const char *name) {
     generate_backup_filename(filename, sizeof(filename), name);
     
     char backup_path[MAX_PATH];
-    snprintf(backup_path, sizeof(backup_path), "%s/%s", backup_dir, filename);
+    if (safe_path_join(backup_path, sizeof(backup_path), backup_dir, filename) != 0) {
+        fprintf(stderr, "Error: Backup path too long\n");
+        return -1;
+    }
     
     // Copy config file
     if (copy_file(g_config.config_path, backup_path) != 0) {
@@ -183,7 +199,9 @@ int backup_list(void) {
             strstr(entry->d_name, ".toml") != NULL) {
             
             char full_path[MAX_PATH];
-            snprintf(full_path, sizeof(full_path), "%s/%s", backup_dir, entry->d_name);
+            if (safe_path_join(full_path, sizeof(full_path), backup_dir, entry->d_name) != 0) {
+                continue;  // Skip if path too long
+            }
             
             if (stat(full_path, &st) == 0) {
                 // Format file size
@@ -217,35 +235,50 @@ int find_backup_file(const char *name, char *found_path, size_t path_size) {
     
     // Try exact filename first
     char test_path[MAX_PATH];
-    snprintf(test_path, sizeof(test_path), "%s/%s", backup_dir, name);
-    if (access(test_path, R_OK) == 0) {
-        strncpy(found_path, test_path, path_size - 1);
-        found_path[path_size - 1] = '\0';
-        return 0;
+    if (safe_path_join(test_path, sizeof(test_path), backup_dir, name) == 0) {
+        if (access(test_path, R_OK) == 0) {
+            strncpy(found_path, test_path, path_size - 1);
+            found_path[path_size - 1] = '\0';
+            return 0;
+        }
     }
     
     // Try with .toml extension
-    snprintf(test_path, sizeof(test_path), "%s/%s.toml", backup_dir, name);
-    if (access(test_path, R_OK) == 0) {
-        strncpy(found_path, test_path, path_size - 1);
-        found_path[path_size - 1] = '\0';
-        return 0;
+    char name_with_ext[MAX_PATH];
+    int ret = snprintf(name_with_ext, sizeof(name_with_ext), "%s.toml", name);
+    if (ret >= 0 && ret < (int)sizeof(name_with_ext)) {
+        if (safe_path_join(test_path, sizeof(test_path), backup_dir, name_with_ext) == 0) {
+            if (access(test_path, R_OK) == 0) {
+                strncpy(found_path, test_path, path_size - 1);
+                found_path[path_size - 1] = '\0';
+                return 0;
+            }
+        }
     }
     
     // Try with config_ prefix
-    snprintf(test_path, sizeof(test_path), "%s/config_%s", backup_dir, name);
-    if (access(test_path, R_OK) == 0) {
-        strncpy(found_path, test_path, path_size - 1);
-        found_path[path_size - 1] = '\0';
-        return 0;
+    char prefixed_name[MAX_PATH];
+    ret = snprintf(prefixed_name, sizeof(prefixed_name), "config_%s", name);
+    if (ret >= 0 && ret < (int)sizeof(prefixed_name)) {
+        if (safe_path_join(test_path, sizeof(test_path), backup_dir, prefixed_name) == 0) {
+            if (access(test_path, R_OK) == 0) {
+                strncpy(found_path, test_path, path_size - 1);
+                found_path[path_size - 1] = '\0';
+                return 0;
+            }
+        }
     }
     
     // Try with config_ prefix and .toml extension
-    snprintf(test_path, sizeof(test_path), "%s/config_%s.toml", backup_dir, name);
-    if (access(test_path, R_OK) == 0) {
-        strncpy(found_path, test_path, path_size - 1);
-        found_path[path_size - 1] = '\0';
-        return 0;
+    ret = snprintf(prefixed_name, sizeof(prefixed_name), "config_%s.toml", name);
+    if (ret >= 0 && ret < (int)sizeof(prefixed_name)) {
+        if (safe_path_join(test_path, sizeof(test_path), backup_dir, prefixed_name) == 0) {
+            if (access(test_path, R_OK) == 0) {
+                strncpy(found_path, test_path, path_size - 1);
+                found_path[path_size - 1] = '\0';
+                return 0;
+            }
+        }
     }
     
     return -1;
