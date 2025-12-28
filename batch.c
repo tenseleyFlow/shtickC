@@ -96,7 +96,7 @@ static int parse_csv_line(char *line, char *type, char *group, char *key, char *
             len -= 2;
         }
         if (len < MAX_VALUE) {  // Bounds check
-            strncpy(fields[field_idx], field_start, len);
+            memcpy(fields[field_idx], field_start, len);
             fields[field_idx][len] = '\0';
             field_idx++;
         }
