@@ -8,7 +8,14 @@ Config g_config;
 // Simple init command implementation
 void cmd_init(const char *shell) {
     printf("# Shtick Shell Setup\n\n");
-    
+
+    printf("RECOMMENDED: Use wrapper function for auto-sourcing\n");
+    printf("(Automatically applies aliases/env/functions immediately)\n\n");
+    printf("  shtick wrapper %s\n\n", shell ? shell : "bash");
+    printf("Then copy the generated function to your shell config.\n\n");
+    printf("---\n\n");
+    printf("ALTERNATIVE: Manual sourcing (requires 'source' after changes)\n\n");
+
     if (!shell) {
         printf("Add to your shell config:\n\n");
         printf("# Bash (~/.bashrc):\n");
@@ -54,7 +61,7 @@ void cmd_init(const char *shell) {
         printf("# Add to your %s config:\n", shell);
         printf("source ~/.config/shtick/load_active.%s\n", shell);
     }
-    
+
     printf("\nThen run: shtick generate %s\n", shell ? shell : "");
 }
 
@@ -105,14 +112,26 @@ int main(int argc, char *argv[]) {
                 if (parse_assignment(argv[2], key, value) == 0) {
                     add_alias("persistent", key, value);
                     save_config(g_config.config_path);
-                    printf("✓ Added alias '%s' to persistent group\n", key);
                     generate_shell_file("bash");
                     generate_shell_file("zsh");
                     generate_shell_file("fish");
-                    
-                    // Offer auto-source
-                    if (should_offer_auto_source("persistent")) {
-                        offer_auto_source();
+
+                    // Check if output is a TTY (interactive) or piped (eval)
+                    if (!is_stdout_tty()) {
+                        // Being piped/eval'd - output shell code to stdout, message to stderr
+                        fprintf(stderr, "✓ Added alias '%s'\n", key);
+                        output_shell_code();
+                    } else {
+                        // Interactive mode
+                        printf("✓ Added alias '%s' to persistent group\n", key);
+
+                        // Skip prompt if running through wrapper (SHTICK_AUTO_SOURCE is set)
+                        if (!getenv("SHTICK_AUTO_SOURCE")) {
+                            // Offer auto-source if enabled
+                            if (should_auto_source_prompt() && should_offer_auto_source("persistent")) {
+                                offer_auto_source();
+                            }
+                        }
                     }
                 }
             } else {
@@ -132,14 +151,26 @@ int main(int argc, char *argv[]) {
                 if (parse_assignment(argv[2], key, value) == 0) {
                     add_env("persistent", key, value);
                     save_config(g_config.config_path);
-                    printf("✓ Added environment variable '%s' to persistent group\n", key);
                     generate_shell_file("bash");
                     generate_shell_file("zsh");
                     generate_shell_file("fish");
-                    
-                    // Offer auto-source
-                    if (should_offer_auto_source("persistent")) {
-                        offer_auto_source();
+
+                    // Check if output is a TTY (interactive) or piped (eval)
+                    if (!is_stdout_tty()) {
+                        // Being piped/eval'd - output shell code to stdout, message to stderr
+                        fprintf(stderr, "✓ Added env '%s'\n", key);
+                        output_shell_code();
+                    } else {
+                        // Interactive mode
+                        printf("✓ Added environment variable '%s' to persistent group\n", key);
+
+                        // Skip prompt if running through wrapper (SHTICK_AUTO_SOURCE is set)
+                        if (!getenv("SHTICK_AUTO_SOURCE")) {
+                            // Offer auto-source if enabled
+                            if (should_auto_source_prompt() && should_offer_auto_source("persistent")) {
+                                offer_auto_source();
+                            }
+                        }
                     }
                 }
             } else {
@@ -173,16 +204,17 @@ int main(int argc, char *argv[]) {
                         if (exists) {
                             show_function_definition(name);
                         } else {
-                            // Create interactively
+                            // Create interactively - always use TTY mode for interactive editing
                             if (add_function_interactive("persistent", name) == 0) {
                                 save_config(g_config.config_path);
-                                printf("✓ Added function '%s' to persistent group\n", name);
                                 generate_shell_file("bash");
                                 generate_shell_file("zsh");
                                 generate_shell_file("fish");
-                                
-                                // Offer auto-source
-                                if (should_offer_auto_source("persistent")) {
+
+                                printf("✓ Added function '%s' to persistent group\n", name);
+
+                                // Offer auto-source if enabled
+                                if (should_auto_source_prompt() && should_offer_auto_source("persistent")) {
                                     offer_auto_source();
                                 }
                             }
@@ -192,14 +224,26 @@ int main(int argc, char *argv[]) {
                     // Add function with body
                     if (add_function("persistent", name, body) == 0) {
                         save_config(g_config.config_path);
-                        printf("✓ Added function '%s' to persistent group\n", name);
                         generate_shell_file("bash");
                         generate_shell_file("zsh");
                         generate_shell_file("fish");
-                        
-                        // Offer auto-source
-                        if (should_offer_auto_source("persistent")) {
-                            offer_auto_source();
+
+                        // Check if output is a TTY (interactive) or piped (eval)
+                        if (!is_stdout_tty()) {
+                            // Being piped/eval'd - output shell code to stdout, message to stderr
+                            fprintf(stderr, "✓ Added function '%s'\n", name);
+                            output_shell_code();
+                        } else {
+                            // Interactive mode
+                            printf("✓ Added function '%s' to persistent group\n", name);
+
+                            // Skip prompt if running through wrapper (SHTICK_AUTO_SOURCE is set)
+                            if (!getenv("SHTICK_AUTO_SOURCE")) {
+                                // Offer auto-source if enabled
+                                if (should_auto_source_prompt() && should_offer_auto_source("persistent")) {
+                                    offer_auto_source();
+                                }
+                            }
                         }
                     }
                 }
@@ -208,14 +252,26 @@ int main(int argc, char *argv[]) {
             // Add function from file
             if (add_function_from_file("persistent", argv[4], argv[3]) == 0) {
                 save_config(g_config.config_path);
-                printf("✓ Added function '%s' from file '%s' to persistent group\n", argv[4], argv[3]);
                 generate_shell_file("bash");
                 generate_shell_file("zsh");
                 generate_shell_file("fish");
-                
-                // Offer auto-source
-                if (should_offer_auto_source("persistent")) {
-                    offer_auto_source();
+
+                // Check if output is a TTY (interactive) or piped (eval)
+                if (!is_stdout_tty()) {
+                    // Being piped/eval'd - output shell code to stdout, message to stderr
+                    fprintf(stderr, "✓ Added function '%s' from file\n", argv[4]);
+                    output_shell_code();
+                } else {
+                    // Interactive mode
+                    printf("✓ Added function '%s' from file '%s' to persistent group\n", argv[4], argv[3]);
+
+                    // Skip prompt if running through wrapper (SHTICK_AUTO_SOURCE is set)
+                    if (!getenv("SHTICK_AUTO_SOURCE")) {
+                        // Offer auto-source if enabled
+                        if (should_auto_source_prompt() && should_offer_auto_source("persistent")) {
+                            offer_auto_source();
+                        }
+                    }
                 }
             }
         }
@@ -482,6 +538,11 @@ int main(int argc, char *argv[]) {
     else if (strcmp(command, "source") == 0) {
         const char *shell = argc >= 3 ? argv[2] : NULL;
         return cmd_source(shell);
+    }
+    else if (strcmp(command, "wrapper") == 0) {
+        // Generate shell wrapper function for auto-sourcing
+        const char *shell = argc >= 3 ? argv[2] : NULL;
+        return cmd_wrapper(shell);
     }
     else if (strcmp(command, "batch") == 0) {
         if (argc < 3) {

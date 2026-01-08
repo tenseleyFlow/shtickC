@@ -1,7 +1,46 @@
 # shtickC
-(noun) : something clever never  
+(noun) : something clever never
 
-**usage**
+## Installation
+
+### Quick Setup (Recommended)
+```bash
+make setup
+```
+This builds, installs, and configures auto-sourcing so aliases/env/functions work immediately!
+
+### Manual Installation
+```bash
+make install
+./setup.sh  # Interactive wrapper setup
+```
+
+Or install without auto-sourcing:
+```bash
+make install
+# Then add to your shell config (~/.bashrc, ~/.zshrc, etc.):
+source ~/.config/shtick/load_active.<shell>
+```
+
+### Why Auto-Sourcing?
+Without auto-sourcing, you need to manually run `source ~/.config/shtick/load_active.<shell>` after every change. The wrapper function automates this, making aliases/env/functions available immediately.
+
+**With wrapper:**
+```bash
+shtick alias gs=gitswitch
+gs  # Works immediately!
+```
+
+**Without wrapper:**
+```bash
+shtick alias gs=gitswitch
+source ~/.config/shtick/load_active.bash  # Manual step required
+gs  # Now it works
+```
+
+---
+
+## Usage
 ```
   shtick alias                          Show all aliases
   shtick alias <key>                    Show specific alias definition
@@ -37,6 +76,7 @@
   shtick generate [shell|all]           Generate shell files
   shtick shells                         List all supported shells
   shtick init [shell]                   Show setup instructions
+  shtick wrapper [shell]                Generate auto-sourcing wrapper function
   shtick completions [shell|all]        Generate shell completions
 
 Examples:

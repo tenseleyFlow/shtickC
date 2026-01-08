@@ -122,6 +122,8 @@ int cmd_source(const char *shell_override);
 void show_source_instructions(void);
 bool should_offer_auto_source(const char *group_name);
 void offer_auto_source(void);
+bool is_stdout_tty(void);
+void output_shell_code(void);
 
 // escape.c - Shell escaping utilities
 char* escape_bash_value(const char *value, char *buffer, size_t size);
@@ -161,5 +163,8 @@ void cleanup_old_backups(int max_backups);
 int batch_add(const char *filename);
 int batch_remove(const char *filename);
 void batch_help(void);
+
+// Wrapper generation
+int cmd_wrapper(const char *shell);
 
 #endif // SHTICK_H
