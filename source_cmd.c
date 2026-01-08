@@ -1,6 +1,7 @@
 // source_cmd.c - Source command implementation (FIXED)
 #include "shtick.h"
 #include <unistd.h>
+#include <sys/stat.h>
 
 // Shell detection with caching
 static char detected_shell[32] = {0};
@@ -86,32 +87,14 @@ int cmd_source(const char *shell_override) {
 // Helper function to show source instructions
 void show_source_instructions(void) {
     const char *shell = detect_current_shell();
-    
-    printf("\n🎯 Copy and paste this command to load changes immediately:\n");
-    
+
+    printf("\nTo apply immediately, run:\n  ");
+
     if (strcmp(shell, "fish") == 0) {
         printf("eval (shtick source)\n");
     } else {
         printf("eval \"$(shtick source)\"\n");
     }
-    
-    printf("\nOr run directly:\n");
-    printf("source ~/.config/shtick/load_active.%s\n", shell);
-    
-    printf("\n✨ Changes will be available in new shell sessions automatically.\n");
-    
-    // Show eval hint
-    printf("\n💡 To automatically source shtick when making changes, use:\n");
-    printf("eval \"$(shtick source)\"\n");
-    printf("\nOr add this alias to your shell config:\n");
-    
-    if (strcmp(shell, "bash") == 0 || strcmp(shell, "zsh") == 0) {
-        printf("alias ss='eval \"$(shtick source)\"'\n");
-    } else if (strcmp(shell, "fish") == 0) {
-        printf("alias ss 'eval (shtick source)'\n");
-    }
-    
-    printf("Then just run 'ss' after adding aliases!\n");
 }
 
 // Check if we should offer auto-source (called after add/remove operations)
@@ -125,25 +108,61 @@ bool should_offer_auto_source(const char *group_name) {
     return is_group_active(group_name);
 }
 
+// Check if stdout is a TTY (interactive terminal)
+bool is_stdout_tty(void) {
+    return isatty(STDOUT_FILENO);
+}
+
+// Output shell code to source the active configuration
+// Used when command is piped or eval'd
+// Outputs the actual file contents so eval works in current shell
+void output_shell_code(void) {
+    const char *shell = detect_current_shell();
+    const char *home = getenv("HOME");
+    if (!home) home = ".";
+
+    char loader_path[MAX_PATH];
+    snprintf(loader_path, sizeof(loader_path), "%s/.config/shtick/load_active.%s", home, shell);
+
+    // Check if loader exists and output its contents
+    FILE *fp = fopen(loader_path, "r");
+    if (fp) {
+        char line[MAX_LINE];
+        while (fgets(line, sizeof(line), fp)) {
+            // Skip comments and empty lines for cleaner output
+            char *trimmed = line;
+            while (*trimmed && (*trimmed == ' ' || *trimmed == '\t')) trimmed++;
+
+            if (trimmed[0] == '#' || trimmed[0] == '\n' || trimmed[0] == '\0') {
+                continue;
+            }
+
+            // Output the line
+            printf("%s", line);
+        }
+        fclose(fp);
+    }
+}
+
 // Interactive auto-source prompt
 void offer_auto_source(void) {
     const char *shell = detect_current_shell();
-    
+
     // Only support common interactive shells
-    if (!shell || (strcmp(shell, "bash") != 0 && 
-                   strcmp(shell, "zsh") != 0 && 
+    if (!shell || (strcmp(shell, "bash") != 0 &&
+                   strcmp(shell, "zsh") != 0 &&
                    strcmp(shell, "fish") != 0)) {
         return;
     }
-    
-    printf("\nSource shtick in current %s session? [Y/n]: ", shell);
+
+    printf("\nApply now? [Y/n]: ");
     fflush(stdout);
-    
+
     char response[10];
     if (fgets(response, sizeof(response), stdin)) {
         // Trim newline
         response[strcspn(response, "\n")] = '\0';
-        
+
         // Check response (default is yes)
         if (response[0] == '\0' || response[0] == 'y' || response[0] == 'Y') {
             show_source_instructions();

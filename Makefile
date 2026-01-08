@@ -6,7 +6,7 @@ CFLAGS = -Wall -Wextra -O2 -std=c99 -D_GNU_SOURCE
 TARGET = shtick
 
 # Source files - Including all required files
-SRCS = main.c config.c groups.c aliases.c env.c functions.c generator.c display.c utils.c escape.c completions.c source_cmd.c settings.c backup.c batch.c
+SRCS = main.c config.c groups.c aliases.c env.c functions.c generator.c display.c utils.c escape.c completions.c source_cmd.c settings.c backup.c batch.c wrapper.c
 OBJS = $(SRCS:.c=.o)
 HEADERS = shtick.h
 
@@ -27,7 +27,27 @@ install: $(TARGET)
 	@mkdir -p $(HOME)/.local/bin
 	@cp $(TARGET) $(HOME)/.local/bin/
 	@echo "✓ Installed to ~/.local/bin/shtick"
-	@echo "Make sure ~/.local/bin is in your PATH"
+	@echo ""
+	@echo "NEXT STEPS:"
+	@echo "==========="
+	@echo ""
+	@echo "1. Ensure ~/.local/bin is in your PATH"
+	@echo ""
+	@echo "2. Set up auto-sourcing (RECOMMENDED):"
+	@echo "   This makes aliases/env/functions work immediately without manual sourcing."
+	@echo ""
+	@echo "   Run: ./setup.sh"
+	@echo "   Or: shtick wrapper"
+	@echo ""
+	@echo "3. Or for manual sourcing, add to your shell config:"
+	@echo "   source ~/.config/shtick/load_active.<shell>"
+	@echo ""
+	@echo "For more info: shtick init"
+
+# Interactive setup with auto-sourcing wrapper
+setup: install
+	@echo ""
+	@./setup.sh
 
 uninstall:
 	@echo "Uninstalling shtick..."
@@ -74,14 +94,16 @@ format:
 # Help
 help:
 	@echo "shtick build targets:"
-	@echo "  make         - Build shtick"
-	@echo "  make install - Install to ~/.local/bin"
-	@echo "  make clean   - Remove build artifacts"
-	@echo "  make debug   - Build with debug symbols"
-	@echo "  make test    - Run full test suite"
+	@echo "  make           - Build shtick"
+	@echo "  make install   - Install to ~/.local/bin"
+	@echo "  make setup     - Install AND configure auto-sourcing wrapper (recommended)"
+	@echo "  make uninstall - Remove installed binary and config"
+	@echo "  make clean     - Remove build artifacts"
+	@echo "  make debug     - Build with debug symbols"
+	@echo "  make test      - Run full test suite"
 	@echo "  make smoke-test - Quick functionality check"
-	@echo "  make analyze - Run static analysis"
-	@echo "  make format  - Format code with clang-format"
+	@echo "  make analyze   - Run static analysis"
+	@echo "  make format    - Format code with clang-format"
 	@echo "  make completions - Generate shell completions"
 
-.PHONY: all install uninstall clean test smoke-test debug analyze format completions help
+.PHONY: all install setup uninstall clean test smoke-test debug analyze format completions help
